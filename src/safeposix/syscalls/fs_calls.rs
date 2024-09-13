@@ -51,7 +51,6 @@ impl Cage {
     *   Then return virtual fd
     */
     pub fn open_syscall(&self, path: &str, oflag: i32, mode: u32) -> i32 {
-        
         // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
