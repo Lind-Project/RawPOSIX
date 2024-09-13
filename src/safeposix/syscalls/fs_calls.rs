@@ -26,7 +26,10 @@ use std::ffi::CString;
 use std::ptr;
 use std::mem;
 
+// use crate::example_grates::vanillaglobal::*;
 use crate::example_grates::dashmapvecglobal::*;
+// use crate::example_grates::muthashmaxglobal::*;
+// use crate::example_grates::dashmaparrayglobal::*;
 
 static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
 
@@ -48,7 +51,8 @@ impl Cage {
     *   Then return virtual fd
     */
     pub fn open_syscall(&self, path: &str, oflag: i32, mode: u32) -> i32 {
-
+        
+        // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
         let full_path = format!("{}{}", LIND_ROOT, relative_path);
