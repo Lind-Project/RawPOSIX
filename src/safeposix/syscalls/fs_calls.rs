@@ -93,7 +93,7 @@ impl Cage {
     *   mknod() will return 0 when success and -1 when fail 
     */
     pub fn mknod_syscall(&self, path: &str, mode: u32, dev: u64) -> i32 {
-        // Convert data CString::new(path).expect("CString::new failed");
+        // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
         let full_path = format!("{}{}", LIND_ROOT, relative_path);
@@ -1001,7 +1001,7 @@ impl Cage {
             return syscall_error(Errno::EBADF, "getdents", "Bad File Descriptor");
         }
         let kernel_fd = kfd.unwrap();
-        let ret = unsafe { libc::syscall(libc::SYS_getdents64 as c_long, kernel_fd as i32, buf as *mut c_void, nbytes) as i32 };
+        let ret = unsafe { libc::syscall(libc::SYS_getdents as c_long, kernel_fd as i32, buf as *mut c_void, nbytes) as i32 };
         if ret < 0 {
             let errno = get_errno();
             return handle_errno(errno, "getdents");
@@ -1107,8 +1107,7 @@ impl Cage {
 
                 shmid = metadata.new_keyid();
                 vacant.insert(shmid);
-                // mode is 9 least signficant bits of shmflag, even if we dont really do anything with them
-                let mode = (shmflg & 0x1FF) as u16; 
+                let mode = (shmflg & 0x1FF) as u16; // mode is 9 least signficant bits of shmflag, even if we dont really do anything with them
 
                 let segment = new_shm_segment(
                     key,
