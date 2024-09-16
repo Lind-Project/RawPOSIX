@@ -387,19 +387,14 @@ impl Cage {
         }
 
         let vfd = wrappedvfd.unwrap();
-        if vfd.fdkind == FDKIND_IMPIPE {
-            self.write_impipe_syscall(vfd, buf, count)
-        } else {
-            // kernel fd
-            let ret = unsafe {
-                libc::write(vfd.underfd as i32, buf as *const c_void, count) as i32
-            };
-            if ret < 0 {
-                let errno = get_errno();
-                return handle_errno(errno, "write");
-            }
-            return ret;
+        let ret = unsafe {
+            libc::write(vfd.underfd as i32, buf as *const c_void, count) as i32
+        };
+        if ret < 0 {
+            let errno = get_errno();
+            return handle_errno(errno, "write");
         }
+        return ret;
     }
 
     //------------------------------------PWRITE SYSCALL------------------------------------
