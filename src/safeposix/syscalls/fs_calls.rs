@@ -775,9 +775,9 @@ impl Cage {
     ) -> i32 {
         if virtual_fd != -1 {
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
-                Ok(vfd) => {
+                Ok(kernel_fd) => {
                     let ret = unsafe {
-                        ((libc::mmap(addr as *mut c_void, len, prot, flags, vfd.underfd as i32, off) as i64) 
+                        ((libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64) 
                             & 0xffffffff) as i32
                     };
                     // if ret < 0 {
@@ -793,15 +793,10 @@ impl Cage {
         }
         
         // Do type conversion to translate from c_void into i32
-        let ret = unsafe {
+        unsafe {
             ((libc::mmap(addr as *mut c_void, len, prot, flags, -1, off) as i64) 
                 & 0xffffffff) as i32
-        };
-        // if ret < 0 {
-        //     let errno = get_errno();
-        //     return handle_errno(errno, "mmap");
-        // }
-        return ret;
+        }
     }
 
     //------------------------------------MUNMAP SYSCALL------------------------------------
