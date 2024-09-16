@@ -797,10 +797,10 @@ impl Cage {
             ((libc::mmap(addr as *mut c_void, len, prot, flags, -1, off) as i64) 
                 & 0xffffffff) as i32
         };
-        if ret < 0 {
-            let errno = get_errno();
-            return handle_errno(errno, "mmap");
-        }
+        // if ret < 0 {
+        //     let errno = get_errno();
+        //     return handle_errno(errno, "mmap");
+        // }
         return ret;
     }
 
