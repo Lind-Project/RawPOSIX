@@ -25,7 +25,7 @@ pub use std::sync::atomic::{
 pub use std::sync::Arc as RustRfc;
 pub use std::thread::spawn as helper_thread;
 
-use libc::{mmap, pthread_exit, pthread_kill, pthread_self, sched_yield};
+use libc::{mmap, pthread_exit, pthread_kill, pthread_self, sched_yield, syscall, SYS_futex};
 use std::ffi::c_void;
 
 pub use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
@@ -304,6 +304,10 @@ pub fn lind_kill_from_id(cage_id: u64, sig: i32) {
         assert!(cage_main_thread_id != 0);
         lind_threadkill(cage_main_thread_id, sig);
     }
+}
+
+pub fn libc_futex(uaddr: u64, futex_op: u32, val: u32, val2: u32, uaddr2: u32, val3: u32) -> i32 {
+    unsafe { syscall(SYS_futex, uaddr, futex_op, val, val2, uaddr2, val3)  as i32 }
 }
 
 #[derive(Debug)]

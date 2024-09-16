@@ -567,22 +567,22 @@ pub extern "C" fn lind_syscall_api(
             }
         }
 
-        // FUTEX_SYSCALL => {
-        //     let uaddr = (start_address + arg1) as u64;
-        //     let futex_op = arg2 as u32;
-        //     let val = arg3 as u32;
-        //     let timeout = arg4 as u32;
-        //     let uaddr2 = arg5 as u32;
-        //     let val3 = arg6 as u32;
+        FUTEX_SYSCALL => {
+            let uaddr = (start_address + arg1) as u64;
+            let futex_op = arg2 as u32;
+            let val = arg3 as u32;
+            let timeout = arg4 as u32;
+            let uaddr2 = arg5 as u32;
+            let val3 = arg6 as u32;
 
-        //     interface::check_cageid(cageid);
-        //     unsafe {
-        //         CAGE_TABLE[cageid as usize]
-        //             .as_ref()
-        //             .unwrap()
-        //             .futex_syscall(uaddr, futex_op, val, timeout, uaddr2, val3)
-        //     }
-        // }
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .futex_syscall(uaddr, futex_op, val, timeout, uaddr2, val3)
+            }
+        }
 
         _ => -1, // Return -1 for unknown syscalls
     };
