@@ -1177,7 +1177,7 @@ impl Cage {
         maxevents: i32,
         timeout: i32,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
+        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_epfd);
         let wrappedepfd = fdtables::translate_virtual_fd(self.cageid, virtual_epfd as u64);
         if wrappedepfd.is_err() {
             return syscall_error(Errno::EBADF, "epoll_wait", "Bad File Descriptor");
