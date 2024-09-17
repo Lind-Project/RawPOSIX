@@ -85,6 +85,7 @@ pub fn translate_virtual_fd(cageid: u64, virtualfd: u64) -> Result<FDTableEntry,
     // always have a table for each cage because each new cage is added at fork
     // time
     assert!(FDTABLE.contains_key(&cageid),"Unknown cageid in fdtable access");
+    return Err(threei::Errno::EBADFD as u64);
 
     return match FDTABLE.get(&cageid).unwrap()[virtualfd as usize] {
         Some(tableentry) => Ok(tableentry),
