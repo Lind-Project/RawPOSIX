@@ -68,7 +68,6 @@ impl Cage {
         /*
             translate_virtual_fd(cageid: u64, virtualfd: u64) -> Result<u64, threei::RetVal>
         */
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "bind", "Bad File Descriptor");
@@ -133,7 +132,6 @@ impl Cage {
      *   connect() will return 0 when success and -1 when fail
      */
     pub fn connect_syscall(&self, virtual_fd: i32, addr: &GenSockaddr) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "connect", "Bad File Descriptor");
@@ -204,7 +202,6 @@ impl Cage {
         flags: i32,
         dest_addr: &GenSockaddr,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "sendto", "Bad File Descriptor");
@@ -283,7 +280,6 @@ impl Cage {
         buflen: usize,
         flags: i32,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "send", "Bad File Descriptor");
@@ -314,7 +310,6 @@ impl Cage {
         flags: i32,
         addr: &mut Option<&mut GenSockaddr>,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "recvfrom", "Bad File Descriptor");
@@ -355,7 +350,6 @@ impl Cage {
      *       - Fail: -1
      */
     pub fn recv_syscall(&self, virtual_fd: i32, buf: *mut u8, len: usize, flags: i32) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "recv", "Bad File Descriptor");
@@ -375,7 +369,6 @@ impl Cage {
      *   listen() will return 0 when success and -1 when fail
      */
     pub fn listen_syscall(&self, virtual_fd: i32, backlog: i32) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "listen", "Bad File Descriptor");
@@ -395,7 +388,6 @@ impl Cage {
      *   shutdown() will return 0 when success and -1 when fail
      */
     pub fn shutdown_syscall(&self, virtual_fd: i32, how: i32) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "shutdown", "Bad File Descriptor");
@@ -427,7 +419,6 @@ impl Cage {
         virtual_fd: i32,
         addr: &mut Option<&mut GenSockaddr>,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "accept", "Bad File Descriptor");
@@ -796,7 +787,6 @@ impl Cage {
         optname: i32,
         optval: &mut i32,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "getsockopt", "Bad File Descriptor");
@@ -826,7 +816,6 @@ impl Cage {
         optval: *mut u8,
         optlen: u32,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "setsockopt", "Bad File Descriptor");
@@ -852,7 +841,6 @@ impl Cage {
         virtual_fd: i32,
         address: &mut Option<&mut GenSockaddr>
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "getpeername", "Bad File Descriptor");
@@ -918,7 +906,6 @@ impl Cage {
         virtual_fd: i32,
         address: &mut Option<&mut GenSockaddr>,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "getsockname", "Bad File Descriptor");
@@ -1113,9 +1100,7 @@ impl Cage {
         virtual_fd: i32,
         epollevent: &mut EpollEvent,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedepfd = fdtables::translate_virtual_fd(self.cageid, virtual_epfd as u64);
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() || wrappedepfd.is_err() {
             return syscall_error(Errno::EBADF, "epoll", "Bad File Descriptor");
@@ -1177,7 +1162,6 @@ impl Cage {
         maxevents: i32,
         timeout: i32,
     ) -> i32 {
-        println!("Debug: bind_syscall called with virtual_fd = {}", virtual_epfd);
         let wrappedepfd = fdtables::translate_virtual_fd(self.cageid, virtual_epfd as u64);
         if wrappedepfd.is_err() {
             return syscall_error(Errno::EBADF, "epoll_wait", "Bad File Descriptor");
