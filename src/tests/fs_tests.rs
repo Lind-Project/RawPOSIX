@@ -736,11 +736,15 @@ pub mod fs_tests {
 
     #[test]
     pub fn ut_lind_fs_chdir_removeddir() {
-        //acquiring a lock on TESTMUTEX prevents other tests from running concurrently,
+        // Acquiring a lock on TESTMUTEX prevents other tests from running concurrently,
         // and also performs clean env setup
         let _thelock = setup::lock_and_init();
-
+    
         let cage = interface::cagetable_getref(1);
+    
+        // Cleanup step: Remove directories if they exist
+        let _ = cage.rmdir_syscall("/subdir1");
+        let _ = cage.rmdir_syscall("/subdir2");
     
         // Checking if removing the current working directory works correctly
         let result_mkdir1 = cage.mkdir_syscall("/subdir1", S_IRWXA);
