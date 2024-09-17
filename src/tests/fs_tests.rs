@@ -744,8 +744,7 @@ pub mod fs_tests {
 
         //Checking if removing the current working directory
         //works correctly
-        assert_eq!(cage.rmdir_syscall("/subdir1"), 0);
-        // assert_eq!(cage.mkdir_syscall("/subdir1", S_IRWXA), 0);
+        assert_eq!(cage.mkdir_syscall("/subdir1", S_IRWXA), 0);
         assert_eq!(cage.mkdir_syscall("/subdir2", S_IRWXA), 0);
         assert_eq!(cage.chdir_syscall("subdir1"), 0);
         assert_eq!(cage.rmdir_syscall("/subdir1"), 0);
