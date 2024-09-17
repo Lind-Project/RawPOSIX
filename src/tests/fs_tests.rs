@@ -736,41 +736,21 @@ pub mod fs_tests {
 
     #[test]
     pub fn ut_lind_fs_chdir_removeddir() {
-        // Acquiring a lock on TESTMUTEX prevents other tests from running concurrently,
+        //acquiring a lock on TESTMUTEX prevents other tests from running concurrently,
         // and also performs clean env setup
         let _thelock = setup::lock_and_init();
-    
+
         let cage = interface::cagetable_getref(1);
-    
-        // Cleanup step: Remove directories if they exist
-        let _ = cage.rmdir_syscall("/subdir1");
-        let _ = cage.rmdir_syscall("/subdir2");
-    
-        // Checking if removing the current working directory works correctly
-        let result_mkdir1 = cage.mkdir_syscall("/subdir1", S_IRWXA);
-        println!("Debug: mkdir /subdir1 result = {}", result_mkdir1);
-        assert_eq!(result_mkdir1, 0);
-    
-        let result_mkdir2 = cage.mkdir_syscall("/subdir2", S_IRWXA);
-        println!("Debug: mkdir /subdir2 result = {}", result_mkdir2);
-        assert_eq!(result_mkdir2, 0);
-    
-        let result_chdir1 = cage.chdir_syscall("subdir1");
-        println!("Debug: chdir subdir1 result = {}", result_chdir1);
-        assert_eq!(result_chdir1, 0);
-    
-        let result_rmdir = cage.rmdir_syscall("/subdir1");
-        println!("Debug: rmdir /subdir1 result = {}", result_rmdir);
-        assert_eq!(result_rmdir, 0);
-    
-        let result_chdir2 = cage.chdir_syscall("/subdir2");
-        println!("Debug: chdir /subdir2 result = {}", result_chdir2);
-        assert_eq!(result_chdir2, 0);
-    
-        let result_chdir3 = cage.chdir_syscall("subdir1");
-        println!("Debug: chdir subdir1 after removal result = {}", result_chdir3);
-        assert_eq!(result_chdir3, -(Errno::ENOENT as i32));
-    
+
+        //Checking if removing the current working directory
+        //works correctly
+        assert_eq!(cage.mkdir_syscall("/subdir1", S_IRWXA), 0);
+        assert_eq!(cage.mkdir_syscall("/subdir2", S_IRWXA), 0);
+        assert_eq!(cage.chdir_syscall("subdir1"), 0);
+        assert_eq!(cage.rmdir_syscall("/subdir1"), 0);
+        assert_eq!(cage.chdir_syscall("/subdir2"), 0);
+        assert_eq!(cage.chdir_syscall("subdir1"), -(Errno::ENOENT as i32));
+
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
