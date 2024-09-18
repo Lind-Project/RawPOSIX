@@ -731,8 +731,8 @@ pub mod fs_tests {
         assert_eq!(std::str::from_utf8(&buf1).unwrap(), "/subdir1\0");
 
         // Cleanup: Remove the directories
-        assert_eq!(cage.rmdir_syscall("/subdir1/subdir2"), 0);  // Remove subdir2 first
-        assert_eq!(cage.rmdir_syscall("/subdir1"), 0);  // Remove subdir1
+        assert_eq!(cage.rmdir_syscall("/subdir1/subdir2"), 0);
+        assert_eq!(cage.rmdir_syscall("/subdir1"), 0);
     
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
@@ -828,8 +828,8 @@ pub mod fs_tests {
         assert_eq!(std::str::from_utf8(&buf2).unwrap(), "/subdir1/subdir2\0");
 
         // Cleanup: Remove /subdir1/subdir2 and /subdir1 after the test
-        assert_eq!(cage.rmdir_syscall("/subdir1/subdir2"), 0); // Remove subdir2
-        assert_eq!(cage.rmdir_syscall("/subdir1"), 0); // Remove subdir1
+        assert_eq!(cage.rmdir_syscall("/subdir1/subdir2"), 0);
+        assert_eq!(cage.rmdir_syscall("/subdir1"), 0);
 
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
