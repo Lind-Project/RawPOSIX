@@ -258,7 +258,6 @@ impl Arg {
 
 #[no_mangle]
 pub extern "C" fn lind_syscall_api(
-    cageid: u64,
     call_number: u32,
     call_name: u64,
     start_address: u64,
@@ -269,10 +268,11 @@ pub extern "C" fn lind_syscall_api(
     arg5: u64,
     arg6: u64,
 ) -> i32 {
+    let cageid = 1;
     let call_number = call_number as i32;
 
     // Print all the arguments
-    // println!("rawposix call_number: {}", call_number);
+    println!("rawposix call_number: {}", call_number);
     // println!("call_name: {}", call_name);
     // println!("start_address: {}", start_address);
     // println!("arg1: {}", arg1);
@@ -412,7 +412,7 @@ pub extern "C" fn lind_syscall_api(
         }
 
         OPEN_SYSCALL => {
-            let path = match u64_to_str(arg1) {
+            let path = match u64_to_str(start_address + arg1) {
                 Ok(path_str) => path_str,
                 Err(_) => return -1, // Handle error appropriately, return an error code
             };
@@ -567,6 +567,194 @@ pub extern "C" fn lind_syscall_api(
             }
         }
 
+        RENAME_SYSCALL => {
+            let old_ptr = (start_address + arg1) as *const u8;
+            let new_ptr = (start_address + arg2) as *const u8;
+            
+            // Convert the raw pointers to `&str`
+            let old = unsafe {
+                CStr::from_ptr(old_ptr as *const i8).to_str().unwrap()
+            };
+            let new = unsafe {
+                CStr::from_ptr(new_ptr as *const i8).to_str().unwrap()
+            };
+            
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .rename_syscall(old, new)
+            }
+        }
+
+        XSTAT_SYSCALL => {
+            let fd_ptr =  (start_address + arg1) as *const u8;
+            let buf = match interface::get_statdatastruct(Arg::from_u64_as_cbuf(start_address + arg2)) {
+                Ok(val) => val,
+                Err(errno) => {
+                    return errno;
+                }
+            };
+
+            let fd = unsafe {
+                CStr::from_ptr(fd_ptr as *const i8).to_str().unwrap()
+            };
+        
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .stat_syscall(fd, buf)
+            }
+        }
+
+        MKDIR_SYSCALL => {
+            let fd_ptr = (start_address + arg1) as *const u8;
+            let mode = arg2 as u32;
+            
+            let fd= unsafe {
+                CStr::from_ptr(fd_ptr as *const i8).to_str().unwrap()
+            }; 
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .mkdir_syscall(fd, mode)
+            }
+        }
+
+        RMDIR_SYSCALL => {
+            let fd_ptr = (start_address + arg1) as *const u8;
+
+            let fd= unsafe {
+                CStr::from_ptr(fd_ptr as *const i8).to_str().unwrap()
+            }; 
+            
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .rmdir_syscall(fd)
+            }
+        }
+
+        FCHDIR_SYSCALL => {
+            let fd = arg1 as i32;
+            
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .fchdir_syscall(fd)
+            }
+        }
+
+        GETCWD_SYSCALL => {
+            let buf = (start_address + arg1) as *mut u8;
+            let bufsize = arg2 as u32;
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .getcwd_syscall(buf, bufsize)
+            }
+        }
+
+        FSTATFS_SYSCALL => {
+            let fd = arg1 as i32;
+            let buf = interface::get_fsdatastruct(Arg::from_u64_as_cbuf(start_address + arg2)).unwrap();
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .fstatfs_syscall(fd, buf)
+            }
+        }
+
+        CHMOD_SYSCALL => {
+            let fd_ptr = (start_address + arg1) as *const u8;
+            
+            let fd= unsafe {
+                CStr::from_ptr(fd_ptr as *const i8).to_str().unwrap()
+            }; 
+
+            let mode = arg2 as u32;
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .chmod_syscall(fd, mode)
+            }
+        }
+        
+        //testing
+        DUP_SYSCALL => {
+            let fd = arg1 as i32;
+            let fd2: Option<i32> = if arg1 <= i32::MAX as u64 {
+                Some(arg1 as i32)
+            } else {
+                None
+            };
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .dup_syscall(fd, fd2)
+            }
+        }
+
+        DUP2_SYSCALL => {
+            let fd = arg1 as i32;
+            let fd2 = arg2 as i32;
+            
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .dup2_syscall(fd, fd2)
+            }
+        }
+
+        FCHMOD_SYSCALL => {
+            let fd = arg1 as i32;
+            let mode = arg2 as u32;
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .fchmod_syscall(fd, mode)
+            }
+        }
+
+        FXSTAT_SYSCALL => {
+            let fd = arg1 as i32;
+            let buf = interface::get_statdatastruct(Arg::from_u64_as_cbuf(start_address + arg2)).unwrap();
+            
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .fstat_syscall(fd, buf)
+            }
+        }
+
         // FUTEX_SYSCALL => {
         //     let uaddr = (start_address + arg1) as u64;
         //     let futex_op = arg2 as u32;
@@ -587,7 +775,7 @@ pub extern "C" fn lind_syscall_api(
         _ => -1, // Return -1 for unknown syscalls
     };
     
-    // println!("Lind returns: {}", ret);
+    println!("Lind returns: {}", ret);
     ret
 }
 
