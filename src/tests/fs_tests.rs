@@ -3856,15 +3856,34 @@ pub mod fs_tests {
         // We should expect an error (EISDIR) as writing to a directory is not
         // supported.
         let path = "/test_dir";
+        // Remove the directory if it exists to ensure a clean test environment
+        let _ = cage.rmdir_syscall(path);
+        // Create the directory
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
-        let fd = cage.open_syscall(path, O_WRONLY, S_IRWXA);
-
-        let write_data = "hello";
+        // Attempt to open the directory with O_WRONLY, expecting EISDIR
+        let fd_wr = cage.open_syscall(path, O_WRONLY, S_IRWXA);
         assert_eq!(
-            cage.write_syscall(fd, write_data.as_ptr(), write_data.len()),
+            fd_wr,
             -(Errno::EISDIR as i32)
         );
 
+        // Open the directory with O_RDONLY to get a valid file descriptor
+        let fd_rd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
+        assert!(
+            fd_rd >= 0,
+            "Failed to open directory with O_RDONLY, got error code: {}",
+            fd_rd
+        );
+        let write_data = "hello";
+        let write_result = cage.write_syscall(fd_rd, write_data.as_ptr(), write_data.len());
+        assert_eq!(
+            write_result,
+            -(Errno::EBADF as i32)
+        );
+
+        // Clean up
+        assert_eq!(cage.close_syscall(fd_rd), 0);
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
