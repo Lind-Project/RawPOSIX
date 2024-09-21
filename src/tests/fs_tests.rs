@@ -12,10 +12,9 @@ pub mod fs_tests {
     use std::os::unix::fs::PermissionsExt;
     use crate::interface::{StatData, FSData};
     use libc::*;
-    use crate::interface::ShmidsStruct;
+    use crate::interface::{ShmidsStruct, get_errno};
     pub use std::ffi::CStr as RustCStr;
     use std::mem;
-    use crate::interface::get_errno;
 
     use crate::fdtables::FDTABLE;
 
@@ -427,15 +426,7 @@ pub mod fs_tests {
         assert_eq!(cage.write_syscall(fd, str2cbuf("Test text"), 9), 9);
 
         let mmap_result = cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, 0, fd, 0);
-
-        // If mmap fails (returns -1), check errno for specific error (EINVAL)
-        if mmap_result == -1 {
-            let errno = get_errno();  // Capture errno here
-            assert_eq!(errno, Errno::EINVAL as i32);  // Check that errno is EINVAL
-        } else {
-            panic!("mmap did not fail as expected");
-        }
-
+        assert_eq!(mmap_result, -1, "mmap did not fail as expected");
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
