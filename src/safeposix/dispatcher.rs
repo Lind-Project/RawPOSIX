@@ -84,6 +84,7 @@ const SEM_TIMEDWAIT_SYSCALL: i32 = 94;
 const SEM_POST_SYSCALL: i32 = 95;
 const SEM_DESTROY_SYSCALL: i32 = 96;
 const SEM_GETVALUE_SYSCALL: i32 = 97;
+const FUTEX_SYSCALL: i32 = 98;
 
 const GETHOSTNAME_SYSCALL: i32 = 125;
 const PREAD_SYSCALL: i32 = 126;
@@ -112,7 +113,12 @@ const SYNC_FILE_RANGE: i32 = 164;
 
 const WRITEV_SYSCALL: i32 = 170;
 
+const CLONE_SYSCALL: i32 = 171;
+
 use std::collections::HashMap;
+
+use wasmtime::Caller;
+use wasmtime_lind::{get_memory_base, LindHost};
 
 use super::cage::*;
 use super::syscalls::kernel_close;
@@ -132,7 +138,7 @@ use std::io;
 // use super::shm::SHM_METADATA;
 // use super::syscalls::{fs_constants::IPC_STAT, sys_constants::*};
 use crate::interface::types::SockaddrDummy;
-use crate::interface::SigactionStruct;
+use crate::interface::{CloneArgStruct, SigactionStruct};
 use crate::{example_grates, interface};
 use crate::interface::errnos::*;
 // use crate::lib_fs_utils::{lind_deltree, visit_children};
@@ -254,14 +260,19 @@ impl Arg {
     //         dispatch_sigactionstruct: value as *mut SigactionStruct,
     //     }
     // }
+    pub fn from_u64_as_clone_args(value: u64) -> Self {
+        Arg {
+            dispatch_cloneargs: value as *mut CloneArgStruct
+        }
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn lind_syscall_api(
+pub extern "C" fn lind_syscall_api<T: LindHost<T, U> + Clone + Send + 'static + std::marker::Sync, U: Clone + Send + 'static + std::marker::Sync>(
     cageid: u64,
     call_number: u32,
     call_name: u64,
-    start_address: u64,
+    caller: &mut Caller<'_, T>,
     arg1: u64,
     arg2: u64,
     arg3: u64,
@@ -269,10 +280,11 @@ pub extern "C" fn lind_syscall_api(
     arg5: u64,
     arg6: u64,
 ) -> i32 {
-    let call_number = call_number as i32;
+    let start_address = get_memory_base(&caller);
 
+    let call_number = call_number as i32;
     // Print all the arguments
-    // println!("rawposix call_number: {}", call_number);
+    // println!("cage {} calls: {}", cageid, call_number);
     // println!("call_name: {}", call_name);
     // println!("start_address: {}", start_address);
     // println!("arg1: {}", arg1);
@@ -581,6 +593,25 @@ pub extern "C" fn lind_syscall_api(
                     .as_ref()
                     .unwrap()
                     .futex_syscall(uaddr, futex_op, val, timeout, uaddr2, val3)
+            }
+        }
+
+        CLONE_SYSCALL => {
+            let clone_args = match interface::get_cloneargs(Arg::from_u64_as_clone_args(start_address + arg1)) {
+                Ok(val) => val,
+                Err(e) => {
+                    return -1;
+                }
+            };
+
+            clone_args.child_tid = clone_args.child_tid + start_address;
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .clone3_syscall(caller, clone_args)
             }
         }
 

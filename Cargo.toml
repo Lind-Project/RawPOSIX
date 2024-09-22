@@ -1,5 +1,5 @@
 [package]
-name = "rustposix"
+name = "rawposix"
 version = "0.1.0"
 authors = ["Nicholas Smith Renner <nrenner@nyu.edu>", "Jonathan Eli Singer <jes965@nyu.edu>", "Tristan J. Brigham <tristanbrigham22@gmail.com>"]
 edition = "2018"
@@ -24,6 +24,9 @@ ringbuf = "0.2.6"
 dashmap = { version = "5.1", features=["serde"] }
 parking_lot = "0.12"
 bit-set = "0.5"
+wasmtime = { workspace = true, features = ['threads'] }
+wasmtime-environ = { workspace = true }
+wasmtime-lind = { path = "../lind" }
 
 [dependencies.lazy_static]
 version = "1.0"
