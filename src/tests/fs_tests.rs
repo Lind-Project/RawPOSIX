@@ -845,6 +845,7 @@ pub mod fs_tests {
 
         let flags: i32 = O_TRUNC | O_CREAT | O_RDWR;
         let filepath = "/TestFile1";
+        let _ = cage.unlink_syscall(filepath);
         let fd1 = cage.open_syscall(filepath, flags, 0);
 
         //Checking if passing a regular file descriptor correctly
