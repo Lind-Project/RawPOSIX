@@ -786,12 +786,16 @@ impl Cage {
                     return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor");
                 }
             }
-        }
-        
-        // Do type conversion to translate from c_void into i32
-        unsafe {
-            ((libc::mmap(addr as *mut c_void, len, prot, flags, -1, off) as i64) 
-                & 0xffffffff) as i32
+        } else {
+            // Handle mmap with fd = -1 (anonymous memory mapping or special case)
+            let ret = unsafe {
+                libc::mmap(addr as *mut c_void, len, prot, flags, -1, off) as i64
+            };
+            // Check if mmap failed and return the appropriate error if so
+            if ret == -1 {
+                return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
+            }
+            return (ret & 0xffffffff) as i32;
         }
     }
 

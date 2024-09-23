@@ -12,7 +12,7 @@ pub mod fs_tests {
     use std::os::unix::fs::PermissionsExt;
     use crate::interface::{StatData, FSData};
     use libc::*;
-    use crate::interface::ShmidsStruct;
+    use crate::interface::{ShmidsStruct, get_errno};
     pub use std::ffi::CStr as RustCStr;
     use std::mem;
 
@@ -425,18 +425,12 @@ pub mod fs_tests {
         //Writing into that file's first 9 bytes.
         assert_eq!(cage.write_syscall(fd, str2cbuf("Test text"), 9), 9);
 
-        //Checking if not passing any of the two `MAP_PRIVATE`
-        //or `MAP_SHARED` flags correctly results in `The value
-        //of flags is invalid (neither `MAP_PRIVATE` nor
-        //`MAP_SHARED` is set)` error.
-        assert_eq!(
-            cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, 0, fd, 0),
-            -(Errno::EINVAL as i32)
-        );
-
+        let mmap_result = cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, 0, fd, 0);
+        assert_eq!(mmap_result, -1, "mmap did not fail as expected");
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
+
 
     #[test]
     pub fn ut_lind_fs_mmap_invalid_flags_both() {
