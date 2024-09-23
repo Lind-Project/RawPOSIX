@@ -130,6 +130,8 @@ pub mod librawposix {
     pub const LIND_SAFE_FS_FDATASYNC: i32 = 163;
     pub const LIND_SAFE_FS_SYNC_FILE_RANGE: i32 = 164;
 
+    pub const LIND_SAFE_SYS_CLONE: i32 = 171;
+
     #[repr(C)]
     pub union RustArg {
         pub dispatch_int: i32,
@@ -206,9 +208,6 @@ pub mod librawposix {
 
 use std::sync::{Condvar, Mutex};
 
-use wasmtime::Caller;
-use wasmtime_lind::LindHost;
-
 // use crate::librawposix::*;
 use crate::safeposix::dispatcher::*;
 
@@ -282,62 +281,62 @@ pub fn lind_write_inner(fd: i32, buf: *const u8, count: usize, cageid: u64) {
     }
 }
 
-// pub fn lind_fork(parent_cageid: u64, child_cageid: u64) -> i32 {
-//     unsafe {
-//         lind_syscall_api(
-//             parent_cageid,
-//             68 as u32,
-//             0,
-//             0,
-//             child_cageid,
-//             0,
-//             0,
-//             0,
-//             0,
-//             0,
-//         )
-//     }
-// }
+pub fn lind_fork(parent_cageid: u64, child_cageid: u64) -> i32 {
+    unsafe {
+        lind_syscall_api(
+            parent_cageid,
+            68 as u32,
+            0,
+            0,
+            child_cageid,
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+    }
+}
 
-// pub fn lind_exit(cageid: u64, status: i32) -> i32 {
-//     unsafe {
-//         lind_syscall_api(
-//             cageid,
-//             30 as u32,
-//             0,
-//             0,
-//             status as u64,
-//             0,
-//             0,
-//             0,
-//             0,
-//             0,
-//         )
-//     }
-// }
+pub fn lind_exit(cageid: u64, status: i32) -> i32 {
+    unsafe {
+        lind_syscall_api(
+            cageid,
+            30 as u32,
+            0,
+            0,
+            status as u64,
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+    }
+}
 
-// pub fn lind_exec(parent_cageid: u64, child_cageid: u64) -> i32 {
-//     unsafe {
-//         lind_syscall_api(
-//             parent_cageid,
-//             69 as u32,
-//             0,
-//             0,
-//             child_cageid,
-//             0,
-//             0,
-//             0,
-//             0,
-//             0,
-//         )
-//     }
-// }
+pub fn lind_exec(parent_cageid: u64, child_cageid: u64) -> i32 {
+    unsafe {
+        lind_syscall_api(
+            parent_cageid,
+            69 as u32,
+            0,
+            0,
+            child_cageid,
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+    }
+}
 
-pub fn lind_syscall_inner<T: LindHost<T, U> + Clone + Send + 'static + std::marker::Sync, U: Clone + Send + 'static + std::marker::Sync>(
+pub fn lind_syscall_inner(
     cageid: u64,
     call_number: u32,
     call_name: u64,
-    caller: &mut Caller<'_, T>,
+    start_address: u64,
     arg1: u64,
     arg2: u64,
     arg3: u64,
@@ -350,7 +349,7 @@ pub fn lind_syscall_inner<T: LindHost<T, U> + Clone + Send + 'static + std::mark
             cageid,
             call_number,
             call_name,
-            caller,
+            start_address,
             arg1,
             arg2,
             arg3,

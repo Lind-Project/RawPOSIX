@@ -307,48 +307,48 @@ impl Cage {
         status
     }
 
-    pub fn clone3_syscall<T: wasmtime_lind::LindHost<T, U> + Clone + Send + 'static + std::marker::Sync, U: Clone + Send + 'static + std::marker::Sync>
-            (&self, caller: &mut wasmtime::Caller<'_, T>, args: &mut CloneArgStruct) -> i32 {
-        let rewind_res = match wasmtime_lind::catch_rewind(caller) {
-            Ok(val) => val,
-            Err(_) => -1
-        };
+    // pub fn clone3_syscall<T: wasmtime_lind::LindHost<T, U> + Clone + Send + 'static + std::marker::Sync, U: Clone + Send + 'static + std::marker::Sync>
+    //         (&self, caller: &mut wasmtime::Caller<'_, T>, args: &mut CloneArgStruct) -> i32 {
+    //     let rewind_res = match wasmtime_lind::catch_rewind(caller) {
+    //         Ok(val) => val,
+    //         Err(_) => -1
+    //     };
 
-        // println!("rewind_res: {}", rewind_res);
-        if rewind_res >= 0 { return rewind_res; }
-        // get the flags
-        let flags = args.flags;
-        // if CLONE_VM is set, we are creating a new thread (i.e. pthread_create)
-        // otherwise, we are creating a process (i.e. fork)
-        let isthread = flags & (CLONE_VM as u64);
+    //     // println!("rewind_res: {}", rewind_res);
+    //     if rewind_res >= 0 { return rewind_res; }
+    //     // get the flags
+    //     let flags = args.flags;
+    //     // if CLONE_VM is set, we are creating a new thread (i.e. pthread_create)
+    //     // otherwise, we are creating a process (i.e. fork)
+    //     let isthread = flags & (CLONE_VM as u64);
 
-        if isthread == 0 {
-            // fork
-            let child_cageid = self.cageid + 1;
+    //     if isthread == 0 {
+    //         // fork
+    //         let child_cageid = self.cageid + 1;
     
-            self.fork_syscall(child_cageid);
+    //         self.fork_syscall(child_cageid);
     
-            match wasmtime_lind::lind_fork(caller, move |status| {
-                let child_cage = interface::cagetable_getref(child_cageid);
-                child_cage.exit_syscall(status)
-            }) {
-                Ok(res) => res,
-                Err(e) => -1
-            }
-        }
-        else {
-            // pthread_create
-            match wasmtime_lind::lind_fork_shared_memory(caller, move |status| {
-                // on thread exit, we do not need to call cage.exit_syscall
-                // but may need to call some signal stuff
-                // reserve the place for future support of signal
-                0
-            }, args.stack as i32, args.stack_size as i32, args.child_tid) {
-                Ok(res) => res,
-                Err(e) => -1
-            }
-        }
-    }
+    //         match wasmtime_lind::lind_fork(caller, move |status| {
+    //             let child_cage = interface::cagetable_getref(child_cageid);
+    //             child_cage.exit_syscall(status)
+    //         }) {
+    //             Ok(res) => res,
+    //             Err(e) => -1
+    //         }
+    //     }
+    //     else {
+    //         // pthread_create
+    //         match wasmtime_lind::lind_fork_shared_memory(caller, move |status| {
+    //             // on thread exit, we do not need to call cage.exit_syscall
+    //             // but may need to call some signal stuff
+    //             // reserve the place for future support of signal
+    //             0
+    //         }, args.stack as i32, args.stack_size as i32, args.child_tid) {
+    //             Ok(res) => res,
+    //             Err(e) => -1
+    //         }
+    //     }
+    // }
 
     pub fn getpid_syscall(&self) -> i32 {
         self.cageid as i32 //not sure if this is quite what we want but it's easy enough to change later

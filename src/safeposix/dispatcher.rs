@@ -117,8 +117,8 @@ const CLONE_SYSCALL: i32 = 171;
 
 use std::collections::HashMap;
 
-use wasmtime::Caller;
-use wasmtime_lind::{get_memory_base, LindHost};
+// use wasmtime::Caller;
+// use wasmtime_lind::{get_memory_base, LindHost};
 
 use super::cage::*;
 use super::syscalls::kernel_close;
@@ -268,11 +268,11 @@ impl Arg {
 }
 
 #[no_mangle]
-pub extern "C" fn lind_syscall_api<T: LindHost<T, U> + Clone + Send + 'static + std::marker::Sync, U: Clone + Send + 'static + std::marker::Sync>(
+pub extern "C" fn lind_syscall_api(
     cageid: u64,
     call_number: u32,
     call_name: u64,
-    caller: &mut Caller<'_, T>,
+    start_address: u64,
     arg1: u64,
     arg2: u64,
     arg3: u64,
@@ -280,8 +280,6 @@ pub extern "C" fn lind_syscall_api<T: LindHost<T, U> + Clone + Send + 'static + 
     arg5: u64,
     arg6: u64,
 ) -> i32 {
-    let start_address = get_memory_base(&caller);
-
     let call_number = call_number as i32;
     // Print all the arguments
     // println!("cage {} calls: {}", cageid, call_number);
@@ -596,24 +594,24 @@ pub extern "C" fn lind_syscall_api<T: LindHost<T, U> + Clone + Send + 'static + 
             }
         }
 
-        CLONE_SYSCALL => {
-            let clone_args = match interface::get_cloneargs(Arg::from_u64_as_clone_args(start_address + arg1)) {
-                Ok(val) => val,
-                Err(e) => {
-                    return -1;
-                }
-            };
+        // CLONE_SYSCALL => {
+        //     let clone_args = match interface::get_cloneargs(Arg::from_u64_as_clone_args(start_address + arg1)) {
+        //         Ok(val) => val,
+        //         Err(e) => {
+        //             return -1;
+        //         }
+        //     };
 
-            clone_args.child_tid = clone_args.child_tid + start_address;
+        //     clone_args.child_tid = clone_args.child_tid + start_address;
 
-            interface::check_cageid(cageid);
-            unsafe {
-                CAGE_TABLE[cageid as usize]
-                    .as_ref()
-                    .unwrap()
-                    .clone3_syscall(caller, clone_args)
-            }
-        }
+        //     interface::check_cageid(cageid);
+        //     unsafe {
+        //         CAGE_TABLE[cageid as usize]
+        //             .as_ref()
+        //             .unwrap()
+        //             .clone3_syscall(caller, clone_args)
+        //     }
+        // }
 
         _ => -1, // Return -1 for unknown syscalls
     };
