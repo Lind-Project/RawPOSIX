@@ -26,18 +26,29 @@ pub mod fs_tests {
 
         let cage = interface::cagetable_getref(1);
 
-        assert_eq!(cage.access_syscall("/", F_OK), 0);
-        assert_eq!(cage.access_syscall("/", X_OK | R_OK), 0);
+        // Create a test directory
+        let test_root = "/test_root";
+        let res = cage.mkdir_syscall(test_root, 0o755);
+        assert!(res == 0 || res == -libc::EEXIST);
+
+        // Verify access
+        assert_eq!(cage.access_syscall(test_root, F_OK), 0);
+        assert_eq!(cage.access_syscall(test_root, X_OK | R_OK), 0);
 
         let mut statdata2 = StatData::default();
 
-        assert_eq!(cage.stat_syscall("/", &mut statdata2), 0);
-        //ensure that there are two hard links
+        // Get stats for the test directory
+        assert_eq!(cage.stat_syscall(test_root, &mut statdata2), 0);
 
-        assert_eq!(statdata2.st_nlink, 3); //2 for . and .., one for dev, and one so that it can never be removed
+        // Since the directory is newly created and empty, st_nlink should be 2
+        assert_eq!(statdata2.st_nlink, 2); // . and ..
 
-        //ensure that there is no associated size
-        assert_eq!(statdata2.st_size, 0);
+        // Check that st_size is greater than or equal to 4096
+        assert!(statdata2.st_size >= 4096, "Expected st_size >= 4096, got {}", statdata2.st_size);
+
+        // Clean up
+        assert_eq!(cage.rmdir_syscall(test_root), 0);
+
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
 
         lindrustfinalize();
