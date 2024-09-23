@@ -1057,9 +1057,9 @@ impl Cage {
     */
     pub fn getcwd_syscall(&self, buf: *mut u8, bufsize: u32) -> i32 {
         if (!buf.is_null() && bufsize == 0) || (buf.is_null() && bufsize != 0) {
-            unsafe { *libc::__errno_location() = libc::EINVAL };
-            return -libc::EINVAL;
+            return syscall_error(Errno::EINVAL, "getcwd", "Invalid arguments");
         }
+        
         let cwd_container = self.cwd.read();
         let path = cwd_container.to_str().unwrap();
         // The required size includes the null terminator
