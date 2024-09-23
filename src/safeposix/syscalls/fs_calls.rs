@@ -773,6 +773,7 @@ impl Cage {
         virtual_fd: i32,
         off: i64,
     ) -> i32 {
+        // returns an EINVAL error if both flags are set simultaneously
         if (flags & libc::MAP_PRIVATE != 0) && (flags & libc::MAP_SHARED != 0) {
             return syscall_error(Errno::EINVAL, "mmap", "Invalid flags: both MAP_PRIVATE and MAP_SHARED set");
         }
