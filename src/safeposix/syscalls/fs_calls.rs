@@ -1056,10 +1056,17 @@ impl Cage {
     *   - null, fail 
     */
     pub fn getcwd_syscall(&self, buf: *mut u8, bufsize: u32) -> i32 {
+        if (!buf.is_null() && bufsize == 0) || (buf.is_null() && bufsize != 0) {
+            unsafe { *libc::__errno_location() = libc::EINVAL };
+            return -libc::EINVAL;
+        }
         let cwd_container = self.cwd.read();
         let path = cwd_container.to_str().unwrap();
-        if path.len() >= bufsize as usize {
-            return -1;
+        // The required size includes the null terminator
+        let required_size = path.len() + 1;
+        if required_size > bufsize as usize {
+            unsafe { *libc::__errno_location() = libc::ERANGE };
+            return -libc::ERANGE;
         }
         unsafe {
             ptr::copy(path.as_ptr(), buf, path.len());
