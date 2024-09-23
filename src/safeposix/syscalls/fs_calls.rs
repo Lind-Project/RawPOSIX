@@ -773,6 +773,9 @@ impl Cage {
         virtual_fd: i32,
         off: i64,
     ) -> i32 {
+        if (flags & libc::MAP_PRIVATE != 0) && (flags & libc::MAP_SHARED != 0) {
+            return syscall_error(Errno::EINVAL, "mmap", "Invalid flags: both MAP_PRIVATE and MAP_SHARED set");
+        }
         if virtual_fd != -1 {
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
                 Ok(kernel_fd) => {
