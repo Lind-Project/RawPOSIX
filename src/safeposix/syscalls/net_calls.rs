@@ -27,7 +27,7 @@ use libc::*;
 use std::{os::fd::RawFd, ptr};
 use bit_set::BitSet;
 
-static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp/";
+static LIND_ROOT: &str = "/home/lind-wasm/lind_fs_root/";
 
 lazy_static! {
     // A hashmap used to store epoll mapping relationships 
@@ -188,11 +188,11 @@ impl Cage {
                 let c_str = CStr::from_ptr(sun_path_ptr);
                 let str_slice = c_str.to_str().expect("Failed to convert CStr to str");
                 
-                println!("[bind] addr: {:?}", addr);
-                println!("[bind] sun_path: {}", str_slice);
+                // println!("[bind] addr: {:?}", addr);
+                // println!("[bind] sun_path: {}", str_slice);
                 io::stdout().flush().unwrap();
             }
-            println!("[Bind] Error message: {:?}", err_msg);
+            // println!("[Bind] Error message: {:?}", err_msg);
             io::stdout().flush().unwrap();
             return handle_errno(errno, "bind");
         }
@@ -475,7 +475,6 @@ impl Cage {
         };
 
         let ret = unsafe { libc::recvfrom(kernel_fd as i32, buf as *mut c_void, buflen, flags, finalsockaddr, &mut addrlen as *mut u32) as i32 };
-
         if ret < 0 {
             // let err = unsafe {
             //     libc::__errno_location()
@@ -1371,6 +1370,7 @@ impl Cage {
         let vsv_2 = get_unused_virtual_fd(self.cageid, ksv_2 as u64, false, 0).unwrap();
         virtual_socket_vector.sock1 = vsv_1 as i32;
         virtual_socket_vector.sock2 = vsv_2 as i32;
+        
         return 0;
     }
 

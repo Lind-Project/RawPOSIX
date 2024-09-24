@@ -83,7 +83,7 @@ pub struct PipeArray {
     pub writefd: i32,
 }
 
-#[derive(Eq, PartialEq, Default, Copy, Clone)]
+#[derive(Eq, PartialEq, Default, Copy, Clone, Debug)]
 #[repr(C)]
 pub struct SockPair {
     pub sock1: i32,
@@ -659,7 +659,8 @@ pub fn get_sockaddr(union_argument: Arg, addrlen: u32) -> Result<interface::GenS
                 let v6_ptr = pointer as *const interface::SockaddrV6;
                 return Ok(interface::GenSockaddr::V6(unsafe { *v6_ptr }));
             }
-            _ => {
+            val => {
+                println!("val: {}", val);
                 return Err(syscall_error(
                     Errno::EOPNOTSUPP,
                     "dispatcher",

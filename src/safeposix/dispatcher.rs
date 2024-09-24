@@ -248,9 +248,21 @@ impl Arg {
         }
     }
 
+    pub fn from_u64_as_pollstructarray(value: u64) -> Self {
+        Arg {
+            dispatch_pollstructarray: value as *mut interface::PollStruct,
+        }
+    }
+
     pub fn from_u64_as_pipearray(value: u64) -> Self {
         Arg {
             dispatch_pipearray: value as *mut interface::PipeArray,
+        }
+    }
+
+    pub fn from_u64_as_sockpair(value: u64) -> Self {
+        Arg {
+            dispatch_sockpair: value as *mut interface::SockPair,
         }
     }
 
@@ -506,7 +518,7 @@ pub extern "C" fn lind_syscall_api(
         BIND_SYSCALL => {
             let fd = arg1 as i32;
             let addrlen = arg3 as u32;
-            let addr = get_onearg!(interface::get_sockaddr(Arg::from_u64_as_sockaddrstruct(arg2), addrlen));
+            let addr = interface::get_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg2), addrlen).unwrap();
             interface::check_cageid(cageid);
             unsafe {
                 let localaddr = match Ok::<&interface::GenSockaddr, i32>(&addr) {
@@ -542,7 +554,7 @@ pub extern "C" fn lind_syscall_api(
                         .accept_syscall(arg1 as i32, &mut Some(&mut addr))
                 };
                 if rv >= 0 {
-                    interface::copy_out_sockaddr(Arg::from_u64_as_sockaddrstruct(arg2), Arg::from_u64_as_socklen_ptr(arg3), addr);
+                    interface::copy_out_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg2), Arg::from_u64_as_socklen_ptr(start_address + arg3), addr);
                 }
                 rv
             } else {
@@ -938,6 +950,92 @@ pub extern "C" fn lind_syscall_api(
                     .as_ref()
                     .unwrap()
                     .fcntl_syscall(virtual_fd, cmd, arg)
+            }
+        }
+
+        RECV_SYSCALL => {
+            let fd = arg1 as i32;
+            let buf = (start_address + arg2) as *mut u8;
+            let buflen = arg3 as usize;
+            let flag = arg4 as i32;
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .recv_syscall(fd, buf, buflen, flag)
+            }
+        }
+
+        SENDTO_SYSCALL => {
+            let fd = arg1 as i32;
+            let buf = (start_address + arg2) as *const u8;
+            let buflen = arg3 as usize;
+            let flag = arg4 as i32;
+
+            let addrlen = arg6 as u32;
+            let addr = interface::get_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg5), addrlen).unwrap();
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .sendto_syscall(fd, buf, buflen, flag, &addr)
+            }
+        }
+
+        RECVFROM_SYSCALL => {
+            let fd = arg1 as i32;
+            let buf = (start_address + arg2) as *mut u8;
+            let buflen = arg3 as usize;
+            let flag = arg4 as i32;
+
+            // let addrlen = arg6 as u32;
+            // let mut addr = interface::get_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg5), addrlen).unwrap();
+
+            let nullity1 = interface::arg_nullity(&Arg::from_u64_as_sockaddrstruct(arg5));
+            let nullity2 = interface::arg_nullity(&Arg::from_u64_as_socklen_ptr(arg6));
+
+            interface::check_cageid(cageid);
+            // unsafe {
+            //     CAGE_TABLE[cageid as usize]
+            //         .as_ref()
+            //         .unwrap()
+            //         .recvfrom_syscall(fd, buf, buflen, flag, &addr)
+            // };
+
+            if nullity1 && nullity2 {
+                // let addrlen = arg6 as u32;
+                // let mut addr = interface::get_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg5), addrlen).unwrap();
+                unsafe {
+                    CAGE_TABLE[cageid as usize]
+                        .as_ref()
+                        .unwrap()
+                        .recvfrom_syscall(fd, buf, buflen, flag, &mut None)
+                }
+            } else if !(nullity1 || nullity2) {
+                // let addrlen = interface::get_socklen_t_ptr(Arg::from_u64_as_socklen_ptr(arg6)).unwrap();
+                let mut newsockaddr = interface::GenSockaddr::V4(interface::SockaddrV4::default()); //dummy value, rust would complain if we used an uninitialized value here
+
+                let rv = unsafe {
+                    CAGE_TABLE[cageid as usize]
+                        .as_ref()
+                        .unwrap()
+                        .recvfrom_syscall(fd, buf, buflen, flag, &mut Some(&mut newsockaddr))
+                };
+
+                if rv >= 0 {
+                    interface::copy_out_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg5), Arg::from_u64_as_socklen_ptr(start_address + arg6), newsockaddr);
+                }
+                rv
+            } else {
+                syscall_error(
+                    Errno::EINVAL,
+                    "recvfrom",
+                    "exactly one of the last two arguments was zero",
+                )
             }
         }
 
@@ -1348,12 +1446,13 @@ pub extern "C" fn lind_syscall_api(
             let name = (start_address + arg1) as *mut u8;
             let len = arg2 as isize;
             interface::check_cageid(cageid);
-            unsafe {
+            let ret = unsafe {
                 CAGE_TABLE[cageid as usize]
                     .as_ref()
                     .unwrap()
                     .gethostname_syscall(name, len)
-            }
+            };
+            ret
         } 
 
         GETIFADDRS_SYSCALL => {
@@ -1443,52 +1542,81 @@ pub extern "C" fn lind_syscall_api(
             }
         }
         
-        // GETSOCKNAME_SYSCALL => {
-        //     let name = (start_address + arg1) as *mut u8;
-        //     let len = arg2 as isize;
-        //     interface::check_cageid(cageid);
-        //     unsafe {
-        //         CAGE_TABLE[cageid as usize]
-        //             .as_ref()
-        //             .unwrap()
-        //             .getsockname_syscall(name, len)
-        //     }
-        // } 
+        GETSOCKNAME_SYSCALL => {
+            let fd = arg1 as i32;
 
-        // GETSOCKOPT_SYSCALL => {
-        //     let virtual_fd = arg1 as i32;
-        //     let level = arg2 as i32;
-        //     let optname = arg3 as i32;
-        //     let optval_ptr = (start_address + arg4) as *mut u8;
+            // let addrlen = arg3 as u32;
+            // let mut addr = interface::get_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg2), addrlen).unwrap();
 
-        //     let optval = unsafe {
-        //         CStr::from_ptr(optval_ptr as *mut i8).to_str().unwrap()
-        //     }; 
-        //     interface::check_cageid(cageid);
-        //     unsafe {
-        //         CAGE_TABLE[cageid as usize]
-        //             .as_ref()
-        //             .unwrap()
-        //             .getsockopt_syscall(virtual_fd, level, optname, optval)
-        //     }
-        // }
+            let mut addr = interface::GenSockaddr::V4(interface::SockaddrV4::default()); //value doesn't matter
 
-        // FUTEX_SYSCALL => {
-        //     let uaddr = (start_address + arg1) as u64;
-        //     let futex_op = arg2 as u32;
-        //     let val = arg3 as u32;
-        //     let timeout = arg4 as u32;
-        //     let uaddr2 = arg5 as u32;
-        //     let val3 = arg6 as u32;
+            if interface::arg_nullity(&Arg::from_u64_as_sockaddrstruct(arg2)) || interface::arg_nullity(&Arg::from_u64_as_socklen_ptr(arg3)) {
+                return syscall_error(
+                    Errno::EINVAL,
+                    "getsockname",
+                    "Either the address or the length were null",
+                );
+            }
 
-        //     interface::check_cageid(cageid);
-        //     unsafe {
-        //         CAGE_TABLE[cageid as usize]
-        //             .as_ref()
-        //             .unwrap()
-        //             .clone3_syscall(caller, clone_args)
-        //     }
-        // }
+            interface::check_cageid(cageid);
+            let rv = unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .getsockname_syscall(fd, &mut Some(&mut addr))
+            };
+
+            if rv >= 0 {
+                interface::copy_out_sockaddr(Arg::from_u64_as_sockaddrstruct(start_address + arg2), Arg::from_u64_as_socklen_ptr(start_address + arg3), addr);
+            }
+            rv
+        }
+
+        GETSOCKOPT_SYSCALL => {
+            let virtual_fd = arg1 as i32;
+            let level = arg2 as i32;
+            let optname = arg3 as i32;
+
+            let optval_ptr = (start_address + arg4) as *mut i32;
+            let optval = unsafe { &mut *optval_ptr };
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .getsockopt_syscall(virtual_fd, level, optname, optval)
+            }
+        }
+
+        SOCKETPAIR_SYSCALL => {
+            let domain = arg1 as i32;
+            let _type = arg2 as i32;
+            let protocol = arg3 as i32;
+            let virtual_socket_vector = interface::get_sockpair(Arg::from_u64_as_sockpair(start_address + arg4)).unwrap();
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .socketpair_syscall(domain, _type, protocol, virtual_socket_vector)
+            }
+        }
+
+        POLL_SYSCALL => {
+            let nfds = arg2 as u64;
+            let pollfds = interface::get_pollstruct_slice(Arg::from_u64_as_pollstructarray(start_address + arg1), nfds as usize).unwrap();
+            let timeout = arg3 as i32;
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .poll_syscall(pollfds, nfds, timeout)
+            }
+        }
 
         GETPID_SYSCALL => {
             interface::check_cageid(cageid);
