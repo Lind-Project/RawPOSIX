@@ -272,6 +272,7 @@ impl Arg {
 
 #[no_mangle]
 pub extern "C" fn lind_syscall_api(
+    cageid: u64,
     call_number: u32,
     call_name: u64,
     start_address: u64,
@@ -282,7 +283,6 @@ pub extern "C" fn lind_syscall_api(
     arg5: u64,
     arg6: u64,
 ) -> i32 {
-    let cageid = 1;
     let call_number = call_number as i32;
     // Print all the arguments
     // println!("cage {} calls: {}", cageid, call_number);
