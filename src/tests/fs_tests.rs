@@ -2220,20 +2220,23 @@ pub mod fs_tests {
         //We create a new parent directory `/parent_dir` with all write permission
         //flags (to be able to create its child directory) and its child directory
         //'/parent_dir/dir` with all write permision flags.
+        let parent_dir = "/parent_dir_nowriteperm";
         let path = "/parent_dir_nowriteperm/dir";
-        assert_eq!(cage.mkdir_syscall("/parent_dir_nowriteperm", S_IRWXA), 0);
+        // Recursively delete the parent directory if it exists to ensure a clean environment
+        // Note use recursive syscall to delete the parent directory
+        // let _ = Cage::rmdir_recursive_syscall(&cage, parent_dir);
+        assert_eq!(cage.mkdir_syscall(parent_dir, S_IRWXA), 0);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         //Now, we change the parent directories write permission flags to 0,
         //thus calling `rmdir_syscall()`on the child directory
         //should return `Directory does not allow write permission` error
         //because the directory cannot be removed if its parent directory
         //does not allow write permission
-        assert_eq!(
-            cage.chmod_syscall("/parent_dir_nowriteperm", 0o400 | 0o040 | 0o004),
-            0
-        );
+        assert_eq!(cage.chmod_syscall(parent_dir, 0o500), 0); // Set parent to read + execute only
         assert_eq!(cage.rmdir_syscall(path), -(Errno::EACCES as i32));
 
+        // Restore write permissions to the parent to clean up
+        assert_eq!(cage.chmod_syscall(parent_dir, S_IRWXA), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
