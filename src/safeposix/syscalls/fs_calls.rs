@@ -773,9 +773,23 @@ impl Cage {
         virtual_fd: i32,
         off: i64,
     ) -> i32 {
+        if off < 0 {
+            return syscall_error(Errno::EINVAL, "mmap", "Invalid offset: offset cannot be negative");
+        }
         if virtual_fd != -1 {
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
                 Ok(kernel_fd) => {
+                    // Add check for file size using fstat
+                    let mut statbuf: libc::stat = unsafe { std::mem::zeroed() };
+                    if unsafe { libc::fstat(kernel_fd.underfd as i32, &mut statbuf) } != 0 {
+                        return syscall_error(Errno::EBADF, "mmap", "Failed to stat file for mmap");
+                    }
+    
+                    // Check if the offset is beyond the file size
+                    if off as u64 > statbuf.st_size as u64 {
+                        return syscall_error(Errno::EINVAL, "mmap", "Offset exceeds file size");
+                    }
+    
                     let ret = unsafe {
                         ((libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64) 
                             & 0xffffffff) as i32
