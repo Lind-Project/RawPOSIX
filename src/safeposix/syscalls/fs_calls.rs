@@ -33,7 +33,8 @@ use crate::example_grates::dashmapvecglobal::*;
 // use crate::example_grates::muthashmaxglobal::*;
 // use crate::example_grates::dashmaparrayglobal::*;
 
-static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
+// static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
+static LIND_ROOT: &str = "/home/lind-wasm/lind_fs_root";
 
 /* 
 *   We will receive parameters with type u64 by default, then we will do type conversion inside
@@ -343,6 +344,8 @@ impl Cage {
         rposix_statbuf.st_rdev = libc_statbuf.st_rdev as u64;
         rposix_statbuf.st_size = libc_statbuf.st_size as usize;
         rposix_statbuf.st_uid = libc_statbuf.st_uid;
+
+        println!("stat: {:?}", rposix_statbuf);
 
         libcret
     }
@@ -1367,7 +1370,7 @@ impl Cage {
     *   pipe() will return 0 when sucess, -1 when fail 
     */
     pub fn pipe_syscall(&self, pipefd: &mut PipeArray) -> i32 {
-        let mut kernel_fds = [0; 2];
+        let mut kernel_fds: [i32; 2] = [0; 2];
         
         let ret = unsafe { libc::pipe(kernel_fds.as_mut_ptr() as *mut i32) };
         if ret < 0 {
@@ -1375,9 +1378,8 @@ impl Cage {
             return handle_errno(errno, "pipe");
         }
 
-        pipefd.readfd = get_unused_virtual_fd(self.cageid, kernel_fds[0], false, 0).unwrap() as i32;
-        pipefd.writefd = get_unused_virtual_fd(self.cageid, kernel_fds[1], false, 0).unwrap() as i32;
-
+        pipefd.readfd = get_unused_virtual_fd(self.cageid, kernel_fds[0] as u64, false, 0).unwrap() as i32;
+        pipefd.writefd = get_unused_virtual_fd(self.cageid, kernel_fds[1] as u64, false, 0).unwrap() as i32;
         return ret;
     }
 

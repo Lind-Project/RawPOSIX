@@ -76,7 +76,7 @@ pub struct Rlimit {
     pub rlim_max: u64,
 }
 
-#[derive(Eq, PartialEq, Default, Copy, Clone)]
+#[derive(Eq, PartialEq, Default, Copy, Clone, Debug)]
 #[repr(C)]
 pub struct PipeArray {
     pub readfd: i32,

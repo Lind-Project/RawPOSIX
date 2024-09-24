@@ -141,7 +141,7 @@ use std::io;
 // use super::shm::SHM_METADATA;
 // use super::syscalls::{fs_constants::IPC_STAT, sys_constants::*};
 use crate::interface::types::SockaddrDummy;
-use crate::interface::{CloneArgStruct, SigactionStruct};
+use crate::interface::{CloneArgStruct, SigactionStruct, StatData};
 use crate::{example_grates, interface};
 use crate::interface::errnos::*;
 // use crate::lib_fs_utils::{lind_deltree, visit_children};
@@ -242,6 +242,18 @@ impl Arg {
         }
     }
 
+    pub fn from_u64_as_statstruct(value: u64) -> Self {
+        Arg {
+            dispatch_statdatastruct: value as *mut interface::StatData,
+        }
+    }
+
+    pub fn from_u64_as_pipearray(value: u64) -> Self {
+        Arg {
+            dispatch_pipearray: value as *mut interface::PipeArray,
+        }
+    }
+
     pub fn from_u64_as_socklen_ptr(value: u64) -> Self {
         Arg {
             dispatch_socklen_t_ptr: value as *mut u32,
@@ -270,6 +282,17 @@ impl Arg {
     }
 }
 
+fn parse_null_terminated_string(ptr: *const std::os::raw::c_char) -> Result<String, Utf8Error> {
+    // Convert the pointer to a CStr, which is a reference to a null-terminated string
+    let c_str = unsafe {
+        assert!(!ptr.is_null(), "Received a null pointer");
+        std::ffi::CStr::from_ptr(ptr)
+    };
+
+    // Convert the CStr to a Rust String
+    c_str.to_str().map(|s| s.to_owned())
+}
+
 #[no_mangle]
 pub extern "C" fn lind_syscall_api(
     cageid: u64,
@@ -284,6 +307,16 @@ pub extern "C" fn lind_syscall_api(
     arg6: u64,
 ) -> i32 {
     let call_number = call_number as i32;
+    let call_name = match call_name {
+        0 => {
+            "unnamed"
+        },
+        _ => {
+            &parse_null_terminated_string((call_name + start_address) as (*const std::os::raw::c_char)).unwrap()
+        }
+    };
+    // let call_name = ;
+    println!("------cage {} calls {} ({})", cageid, call_name, call_number);
     // Print all the arguments
     // println!("cage {} calls: {}", cageid, call_number);
     // println!("call_name: {}", call_name);
@@ -410,7 +443,7 @@ pub extern "C" fn lind_syscall_api(
         }
 
         ACCESS_SYSCALL => {
-            let path = match u64_to_str(arg1) {
+            let path = match u64_to_str(start_address + arg1) {
                 Ok(path_str) => path_str,
                 Err(_) => return -1, // Handle error appropriately, return an error code
             };
@@ -582,12 +615,17 @@ pub extern "C" fn lind_syscall_api(
 
         XSTAT_SYSCALL => {
             let fd_ptr =  (start_address + arg1) as *const u8;
-            let buf = match interface::get_statdatastruct(Arg::from_u64_as_cbuf(start_address + arg2)) {
+            println!("arg2: {:?}", arg2);
+            let buf = match interface::get_statdatastruct(Arg::from_u64_as_statstruct(start_address + arg2)) {
                 Ok(val) => val,
                 Err(errno) => {
                     return errno;
                 }
             };
+            // println!("buf: {:?}", buf);
+            // let buf = unsafe { &mut *((start_address + arg2) as *mut interface::StatData) };
+            // buf.st_size = 114514;
+            // return 0;
 
             let fd = unsafe {
                 CStr::from_ptr(fd_ptr as *const i8).to_str().unwrap()
@@ -647,17 +685,32 @@ pub extern "C" fn lind_syscall_api(
             }
         }
 
-        GETCWD_SYSCALL => {
-            let buf = (start_address + arg1) as *mut u8;
-            let bufsize = arg2 as u32;
-
+        CHDIR_SYSCALL => {
+            let path = u64_to_str(start_address + arg1).unwrap();
+            
             interface::check_cageid(cageid);
             unsafe {
                 CAGE_TABLE[cageid as usize]
                     .as_ref()
                     .unwrap()
-                    .getcwd_syscall(buf, bufsize)
+                    .chdir_syscall(path)
             }
+        }
+
+        GETCWD_SYSCALL => {
+            let buf = (start_address + arg1) as *mut u8;
+            let bufsize = arg2 as u32;
+
+            interface::check_cageid(cageid);
+
+            let ret = unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .getcwd_syscall(buf, bufsize)
+            };
+            if ret == 0 { return arg1 as i32; }
+            ret
         }
 
         FSTATFS_SYSCALL => {
@@ -1365,6 +1418,31 @@ pub extern "C" fn lind_syscall_api(
                     .sync_file_range_syscall(virtual_fd, offset, nbytes, flags)
             }
         } 
+
+        PIPE_SYSCALL => {
+            let pipe = interface::get_pipearray(Arg::from_u64_as_pipearray(start_address + arg1)).unwrap();
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .pipe_syscall(pipe)
+            }
+        }
+        PIPE2_SYSCALL => {
+            let pipe = interface::get_pipearray(Arg::from_u64_as_pipearray(start_address + arg1)).unwrap();
+            let flag = arg2 as i32;
+
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .pipe2_syscall(pipe, flag)
+            }
+        }
+        
         // GETSOCKNAME_SYSCALL => {
         //     let name = (start_address + arg1) as *mut u8;
         //     let len = arg2 as isize;
@@ -1510,7 +1588,7 @@ pub extern "C" fn lind_syscall_api(
         _ => -1, // Return -1 for unknown syscalls
     };
     
-    println!("Lind returns: {}", ret);
+    println!("------cage {} calling {} returns {}", cageid, call_name, ret);
     ret
 }
 
