@@ -518,27 +518,6 @@ pub extern "C" fn lind_syscall_api(
             }
         }
 
-        GETPID_SYSCALL => {
-            interface::check_cageid(cageid);
-            unsafe {
-                CAGE_TABLE[cageid as usize]
-                    .as_ref()
-                    .unwrap()
-                    .getpid_syscall()
-            }
-        }
-
-        FORK_SYSCALL => {
-            let id = arg1 as u64;
-            interface::check_cageid(cageid);
-            unsafe {
-                CAGE_TABLE[cageid as usize]
-                    .as_ref()
-                    .unwrap()
-                    .fork_syscall(id)
-            }
-        }
-
         // WAIT_SYSCALL => {
         //     let mut status = 0;
         //     interface::check_cageid(cageid);
@@ -612,6 +591,27 @@ pub extern "C" fn lind_syscall_api(
         //             .clone3_syscall(caller, clone_args)
         //     }
         // }
+
+        GETPID_SYSCALL => {
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .getpid_syscall()
+            }
+        }
+
+        FORK_SYSCALL => {
+            let id = arg1 as u64;
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .fork_syscall(id)
+            }
+        }
 
         _ => -1, // Return -1 for unknown syscalls
     };
