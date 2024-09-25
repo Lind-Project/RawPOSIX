@@ -4406,6 +4406,8 @@ pub mod fs_tests {
 
         // Create a directory and open it.
         let path = "/test_dir";
+        // NOTE: Use recursive delete to remove the directory
+        // let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
         assert!(fd >= 0);
