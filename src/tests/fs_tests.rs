@@ -870,7 +870,9 @@ pub mod fs_tests {
         let filepath2 = "/subdirDirMode2";
 
         let mut statdata = StatData::default();
-
+        // NOTE: Use recursive delete to clean up        
+        // let _ = cage.rmdir_syscall(filepath1);
+        // let _ = cage.rmdir_syscall(filepath2);
         assert_eq!(cage.mkdir_syscall(filepath1, S_IRWXA), 0);
         assert_eq!(cage.stat_syscall(filepath1, &mut statdata), 0);
         assert_eq!(statdata.st_mode, 0o755 | S_IFDIR as u32);
