@@ -3763,8 +3763,6 @@ pub mod fs_tests {
 
         // Test for invalid directory should fail
         let path = "/test_dir";
-        // NOTE: Use deltree to remove the directory and its contents
-        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         // Open the directory with O_RDONLY (appropriate for directories)
         let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
@@ -3773,6 +3771,8 @@ pub mod fs_tests {
             cage.pread_syscall(fd, buf.as_mut_ptr(), buf.len(), 0),
             -(Errno::EISDIR as i32)
         );
+        // Clean up the directory for clean environment
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
