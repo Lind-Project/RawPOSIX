@@ -4406,8 +4406,6 @@ pub mod fs_tests {
 
         // Create a directory and open it.
         let path = "/test_dir";
-        // NOTE: Use recursive delete to remove the directory
-        // let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
         assert!(fd >= 0);
@@ -4418,7 +4416,8 @@ pub mod fs_tests {
         // Attempt to close the file descriptor again to ensure it's already closed.
         // Expect an error for "Invalid File Descriptor".
         assert_eq!(cage.close_syscall(fd), -(Errno::EBADF as i32));
-
+        // Remove the directory to clean up the environment
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
