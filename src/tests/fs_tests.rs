@@ -890,8 +890,6 @@ pub mod fs_tests {
         let _thelock = setup::lock_and_init();
 
         let cage = interface::cagetable_getref(1);
-        // NOTE: Use recursive rmdir to remove directories
-        // let _ = cage.rmdir_syscall("/subdirMultiple1");
         assert_eq!(cage.mkdir_syscall("/subdirMultiple1", S_IRWXA), 0);
         assert_eq!(
             cage.mkdir_syscall("/subdirMultiple1/subdirMultiple2", S_IRWXA),
@@ -919,7 +917,10 @@ pub mod fs_tests {
             0
         );
         assert_eq!(statdata.st_mode, S_IFDIR as u32);
-
+        // Cleanup: Remove the directories
+        assert_eq!(cage.rmdir_syscall("/subdirMultiple1/subdirMultiple2/subdirMultiple3"), 0);
+        assert_eq!(cage.rmdir_syscall("/subdirMultiple1/subdirMultiple2"), 0);
+        assert_eq!(cage.rmdir_syscall("/subdirMultiple1"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
