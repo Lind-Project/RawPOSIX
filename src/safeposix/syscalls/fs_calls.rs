@@ -18,7 +18,6 @@ use crate::safeposix::filesystem::normpath;
 use crate::safeposix::shm::*;
 use crate::interface::ShmidsStruct;
 use crate::interface::StatData;
-use crate::interface::{CLIPPED_DIRENT_SIZE, ClippedDirent};
 
 use libc::*;
 use std::io::stdout;
@@ -35,8 +34,6 @@ static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
 
 const FDKIND_KERNEL: u32 = 0;
 const FDKIND_IMPIPE: u32 = 1;
-const S_FILETYPEFLAGS: i32 = 0o170000;
-const S_IFDIR: i32 = 0o40000;
 
 impl Cage {
     //------------------------------------OPEN SYSCALL------------------------------------
@@ -862,98 +859,6 @@ impl Cage {
         }
         
     }
-
-    //------------------IS_DIR FUNCTION------------------
-    /*
-    *   is_dir() checks whether the file mode represents a directory.
-    *   
-    *   This function compares the file mode against the directory bit flag
-    *   (S_IFDIR) and returns whether it is a directory.
-    */
-    pub fn is_dir(mode: u32) -> bool {
-        (mode as i32 & S_FILETYPEFLAGS) == S_IFDIR
-    }
-    
-    //------------------VISIT_CHILDREN FUNCTION------------------
-    /*
-    *   Iterates over all child entries of a directory, applying a visitor function.
-    *   Useful for recursive operations on directory trees.
-    */
-    pub fn visit_children(
-        cage: &Cage,
-        path: &str,
-        arg: Option<usize>,
-        visitor: fn(&Cage, &str, bool, Option<usize>),
-    ) {
-        let mut bigbuffer = [0u8; 65536];
-        let dentptr = bigbuffer.as_mut_ptr();
-    
-        let dirfd = cage.open_syscall(path, O_RDONLY, 0);
-        assert!(dirfd >= 0, "Failed to open directory: {}", path);
-    
-        loop {
-            let direntres = cage.getdents_syscall(dirfd, dentptr, 65536);
-            if direntres == 0 {
-                break;
-            }
-    
-            let mut dentptrindex = 0isize;
-            while dentptrindex < direntres as isize {
-                let clipped_dirent_ptr = dentptr.wrapping_offset(dentptrindex) as *mut ClippedDirent;
-                let clipped_dirent = unsafe { &*clipped_dirent_ptr };
-                let cstrptr = dentptr.wrapping_offset(dentptrindex + CLIPPED_DIRENT_SIZE as isize);
-                let filenamecstr = unsafe { CStr::from_ptr(cstrptr as *const c_char) };
-                let filenamestr = filenamecstr.to_str().unwrap();
-    
-                dentptrindex += clipped_dirent.d_reclen as isize;
-                if filenamestr == "." || filenamestr == ".." {
-                    continue;
-                }
-    
-                let fullstatpath = if path.ends_with("/") {
-                    [path, filenamestr].join("")
-                } else {
-                    [path, "/", filenamestr].join("")
-                };
-    
-                let mut lindstat_res: StatData = StatData::default();
-                let _stat_us = cage.stat_syscall(fullstatpath.as_str(), &mut lindstat_res);
-                visitor(cage, fullstatpath.as_str(), Self::is_dir(lindstat_res.st_mode), arg);
-            }
-        }
-        cage.close_syscall(dirfd);
-    }
-    
-    //------------------LIND_DELTREE FUNCTION------------------
-    /*
-    *   Recursively deletes a directory and all its contents.
-    *   Removes files first, then directories, ensuring they are empty before removal.
-    */
-    pub fn rmdir_recursive_syscall(cage: &Cage, path: &str) -> i32 {
-        let mut lindstat_res: StatData = StatData::default();
-        let stat_us = cage.stat_syscall(path, &mut lindstat_res);
-    
-        if stat_us == 0 {
-            if Self::is_dir(lindstat_res.st_mode) {
-                Self::visit_children(cage, path, None, |childcage, childpath, isdir, _| {
-                    if isdir {
-                        Self::rmdir_recursive_syscall(childcage, childpath);
-                    } else {
-                        let _ = childcage.unlink_syscall(childpath);
-                    }
-                });
-    
-                cage.chmod_syscall(path, S_IRWXA);
-                return cage.rmdir_syscall(path);
-            } else {
-                return cage.unlink_syscall(path);
-            }
-        } else {
-            eprintln!("No such directory exists: {}", path);
-            return syscall_error(Errno::ENOENT, "deltree", "No such directory exists");
-        }
-    }
-    
 
     //------------------RENAME SYSCALL------------------
     /*
