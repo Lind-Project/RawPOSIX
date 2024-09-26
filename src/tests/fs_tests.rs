@@ -2570,9 +2570,6 @@ pub mod fs_tests {
     fn ut_lind_fs_getdents_bufsize_too_small() {
         let _thelock = setup::lock_and_init();
         let cage = interface::cagetable_getref(1);
-        // Remove the directory if it exists
-        // NOTE: Use recursive remove dir
-        // let _ = cage.rmdir_syscall("/getdents");
         let bufsize = interface::CLIPPED_DIRENT_SIZE - 1; // Buffer size smaller than CLIPPED_DIRENT_SIZE
         let mut vec = vec![0u8; bufsize as usize];
         let baseptr: *mut u8 = &mut vec[0];
@@ -2592,7 +2589,8 @@ pub mod fs_tests {
 
         // Close the directory
         assert_eq!(cage.close_syscall(fd), 0);
-
+        // Clean up: Remove the directory and finalize the test environment
+        assert_eq!(cage.rmdir_syscall("/getdents"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
