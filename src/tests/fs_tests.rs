@@ -3764,12 +3764,15 @@ pub mod fs_tests {
         // Test for invalid directory should fail
         let path = "/test_dir";
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
-        let fd = cage.open_syscall(path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA);
+        // Open the directory with O_RDONLY (appropriate for directories)
+        let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
         assert!(fd >= 0);
         assert_eq!(
             cage.pread_syscall(fd, buf.as_mut_ptr(), buf.len(), 0),
             -(Errno::EISDIR as i32)
         );
+        // Clean up the directory for clean environment
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
