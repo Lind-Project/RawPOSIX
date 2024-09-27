@@ -880,7 +880,6 @@ pub mod fs_tests {
         let filepath2 = "/subdirDirMode2";
 
         let mut statdata = StatData::default();
-
         assert_eq!(cage.mkdir_syscall(filepath1, S_IRWXA), 0);
         assert_eq!(cage.stat_syscall(filepath1, &mut statdata), 0);
         assert_eq!(statdata.st_mode, 0o755 | S_IFDIR as u32);
@@ -888,7 +887,9 @@ pub mod fs_tests {
         assert_eq!(cage.mkdir_syscall(filepath2, 0), 0);
         assert_eq!(cage.stat_syscall(filepath2, &mut statdata), 0);
         assert_eq!(statdata.st_mode, S_IFDIR as u32);
-
+        // Cleanup: Remove the directories
+        assert_eq!(cage.rmdir_syscall(filepath1), 0);
+        assert_eq!(cage.rmdir_syscall(filepath2), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
