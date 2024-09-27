@@ -3048,6 +3048,7 @@ pub mod fs_tests {
         let path = "/parentdir/dir";
         // Ensure the directories do not exist for clean environment setup
         // BUG: this rmdir needs to be recursive, we'll change this after we PR a new version of the lindfs tool
+        // Clear the directory if it exists use _ to ignore the return value
         let _ = cage.rmdir_syscall("/parentdir/dir");
         let _ = cage.rmdir_syscall("/parentdir");
         // Check for error when both parent and child directories don't exist
