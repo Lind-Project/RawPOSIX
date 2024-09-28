@@ -2190,7 +2190,9 @@ pub mod fs_tests {
             cage.rmdir_syscall("/parent_dir_nonempty"),
             -(Errno::ENOTEMPTY as i32)
         );
-
+        // Clean up the directories for clean environment
+        let _ = cage.rmdir_syscall(path);
+        let _ = cage.rmdir_syscall("/parent_dir_nonempty");
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
