@@ -2399,7 +2399,8 @@ pub mod fs_tests {
         let old_path = "/test_dir";
         assert_eq!(cage.mkdir_syscall(old_path, S_IRWXA), 0);
         assert_eq!(cage.rename_syscall(old_path, "/test_dir_renamed"), 0);
-
+        // Remove the directory for a clean environment
+        assert_eq!(cage.rmdir_syscall("/test_dir_renamed"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
