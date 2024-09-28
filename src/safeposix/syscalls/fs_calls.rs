@@ -43,7 +43,18 @@ impl Cage {
     *   Then return virtual fd
     */
     pub fn open_syscall(&self, path: &str, oflag: i32, mode: u32) -> i32 {
+        // Validate oflag for unsupported or invalid flags
+        if (oflag & 0o20000) != 0 {
+            // Check for an invalid combination like using S_IFCHR which indicates
+            // character device creation but is being used with O_CREAT.
+            return syscall_error(Errno::EINVAL, "open", "Invalid oflag specified for file opening");
+        }
 
+        // Validate mode for invalid permission bits (only valid ones are allowed)
+        if (mode & !0o777) != 0 {
+            // If there are invalid bits in mode, return error
+            return syscall_error(Errno::EPERM, "open", "Invalid permission bits specified in mode");
+        }
         // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();

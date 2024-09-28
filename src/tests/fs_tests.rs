@@ -3241,6 +3241,8 @@ pub mod fs_tests {
             cage.open_syscall(path, O_CREAT, invalid_mode),
             -(Errno::EPERM as i32)
         );
+        let _ = cage.unlink_syscall("/dir/file");
+        let _ = cage.rmdir_syscall("/dir");
 
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
