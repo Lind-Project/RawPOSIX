@@ -1621,7 +1621,8 @@ pub mod fs_tests {
 
         // Expect an error for unlinking a directory
         assert_eq!(cage.unlink_syscall(path), -(Errno::EISDIR as i32));
-
+        // Cleanup the directory to ensure clean environment
+        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
