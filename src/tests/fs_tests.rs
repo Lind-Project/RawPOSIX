@@ -3015,7 +3015,7 @@ pub mod fs_tests {
         if cage.access_syscall("/tmp", F_OK) != 0 {
             assert_eq!(cage.mkdir_syscall("/tmp", S_IRWXA), 0, "Failed to create /tmp directory");
         }
-
+        assert_eq!(cage.access_syscall("/tmp", F_OK), 0);
         // Open  file in /tmp
         let file_path = "/tmp/testfile";
         let fd = cage.open_syscall(file_path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA);
