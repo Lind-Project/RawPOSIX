@@ -2152,6 +2152,8 @@ pub mod fs_tests {
         let path = "/parent_dir_nonexist/dir";
         assert_eq!(cage.mkdir_syscall("/parent_dir_nonexist", S_IRWXA), 0);
         assert_eq!(cage.rmdir_syscall(path), -(Errno::ENOENT as i32));
+        // Clean up if the parent directory
+        let _ = cage.rmdir_syscall("/parent_dir_nonexist");
 
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
