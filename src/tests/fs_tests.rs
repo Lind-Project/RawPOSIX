@@ -3495,7 +3495,7 @@ pub mod fs_tests {
             cage.read_syscall(fd, read_buf.as_mut_ptr(), 5),
             -(Errno::EISDIR as i32)
         );
-
+        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
