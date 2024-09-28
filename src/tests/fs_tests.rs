@@ -1554,7 +1554,8 @@ pub mod fs_tests {
 
         // Expect an error since linking directories is not allowed
         assert_eq!(cage.link_syscall(oldpath, newpath), -(Errno::EPERM as i32));
-
+        // Cleanup remove the directory for a clean environment
+        let _ = cage.rmdir_syscall(oldpath);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
