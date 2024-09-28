@@ -1616,6 +1616,8 @@ pub mod fs_tests {
         let cage = interface::cagetable_getref(1);
 
         let path = "/testdirunlink";
+        // Cleanup the directory if it already exists
+        let _ = cage.rmdir_syscall(path);
         // Create the directory
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
 
