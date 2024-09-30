@@ -115,6 +115,8 @@ const WRITEV_SYSCALL: i32 = 170;
 
 const CLONE_SYSCALL: i32 = 171;
 
+const NANOSLEEP_TIME64_SYSCALL : i32 = 181;
+
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 
@@ -1691,6 +1693,21 @@ pub extern "C" fn lind_syscall_api(
                     .as_ref()
                     .unwrap()
                     .futex_syscall(uaddr, futex_op, val, timeout, uaddr2, val3)
+            }
+        }
+
+        NANOSLEEP_TIME64_SYSCALL => {
+            let clockid = arg1 as u32;
+            let flags = arg2 as i32;
+            let req = (start_address + arg3) as usize;
+            let rem = (start_address + arg4) as usize;
+            
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .nanosleep_time64_syscall(clockid, flags, req, rem)
             }
         }
 

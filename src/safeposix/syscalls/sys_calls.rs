@@ -49,6 +49,11 @@ impl Cage {
         }
     }
 
+    pub fn nanosleep_time64_syscall(&self, clockid: u32, flags: i32, req: usize, rem: usize) -> i32 {
+        interface::libc_nanosleep_time64(clockid, flags, req, rem)
+    }
+
+
     pub fn fork_syscall(&self, child_cageid: u64) -> i32 {
         // Modify the fdtable manually 
         copy_fdtable_for_cage(self.cageid, child_cageid).unwrap();
