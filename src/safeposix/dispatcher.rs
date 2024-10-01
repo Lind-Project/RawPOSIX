@@ -1394,21 +1394,6 @@ pub extern "C" fn lind_syscall_api(
             }
         }
 
-        RECV_SYSCALL => {
-            let virtual_fd = arg1 as i32;
-            let buf = (start_address + arg4) as *mut u8;
-            let len = arg3 as usize;
-            let flags = arg4 as i32;
-
-            interface::check_cageid(cageid);
-            unsafe {
-                CAGE_TABLE[cageid as usize]
-                    .as_ref()
-                    .unwrap()
-                    .recv_syscall( virtual_fd, buf, len, flags)
-            }
-        }
-
         LISTEN_SYSCALL  => {
             let virtual_fd = arg1 as i32;
             let backlog = arg2 as i32;
