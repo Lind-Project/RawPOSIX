@@ -306,14 +306,6 @@ pub fn lind_kill_from_id(cage_id: u64, sig: i32) {
     }
 }
 
-pub fn libc_futex(uaddr: u64, futex_op: u32, val: u32, val2: u32, uaddr2: u32, val3: u32) -> i32 {
-    unsafe { syscall(SYS_futex, uaddr, futex_op, val, val2, uaddr2, val3)  as i32 }
-}
-
-pub fn libc_nanosleep_time64(clockid: u32, flags: i32, req: usize, rem: usize) -> i32 {
-    unsafe { syscall(SYS_clock_nanosleep, clockid, flags, req, rem)  as i32 }
-}
-
 #[derive(Debug)]
 pub struct AdvisoryLock {
     //0 signifies unlocked, -1 signifies locked exclusively, positive number signifies that many shared lock holders
