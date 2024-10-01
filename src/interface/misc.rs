@@ -25,7 +25,7 @@ pub use std::sync::atomic::{
 pub use std::sync::Arc as RustRfc;
 pub use std::thread::spawn as helper_thread;
 
-use libc::{mmap, pthread_exit, pthread_kill, pthread_self, sched_yield, syscall, SYS_clock_nanosleep, SYS_futex};
+use libc::{mmap, pthread_exit, pthread_kill, pthread_self, sched_yield};
 use std::ffi::c_void;
 
 pub use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
