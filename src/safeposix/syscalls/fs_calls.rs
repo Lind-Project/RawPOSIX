@@ -33,8 +33,7 @@ use crate::example_grates::dashmapvecglobal::*;
 // use crate::example_grates::muthashmaxglobal::*;
 // use crate::example_grates::dashmaparrayglobal::*;
 
-// static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
-static LIND_ROOT: &str = "/home/lind-wasm/lind_fs_root";
+static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
 
 /* 
 *   We will receive parameters with type u64 by default, then we will do type conversion inside
@@ -344,8 +343,6 @@ impl Cage {
         rposix_statbuf.st_rdev = libc_statbuf.st_rdev as u64;
         rposix_statbuf.st_size = libc_statbuf.st_size as usize;
         rposix_statbuf.st_uid = libc_statbuf.st_uid;
-
-        println!("stat: {:?}", rposix_statbuf);
 
         libcret
     }

@@ -143,7 +143,7 @@ use std::io;
 // use super::shm::SHM_METADATA;
 // use super::syscalls::{fs_constants::IPC_STAT, sys_constants::*};
 use crate::interface::types::SockaddrDummy;
-use crate::interface::{CloneArgStruct, SigactionStruct, StatData};
+use crate::interface::{SigactionStruct, StatData};
 use crate::{example_grates, interface};
 use crate::interface::errnos::*;
 // use crate::lib_fs_utils::{lind_deltree, visit_children};
@@ -289,11 +289,6 @@ impl Arg {
     //         dispatch_sigactionstruct: value as *mut SigactionStruct,
     //     }
     // }
-    pub fn from_u64_as_clone_args(value: u64) -> Self {
-        Arg {
-            dispatch_cloneargs: value as *mut CloneArgStruct
-        }
-    }
 }
 
 fn parse_null_terminated_string(ptr: *const std::os::raw::c_char) -> Result<String, Utf8Error> {
@@ -321,16 +316,16 @@ pub extern "C" fn lind_syscall_api(
     arg6: u64,
 ) -> i32 {
     let call_number = call_number as i32;
-    let call_name = match call_name {
-        0 => {
-            "unnamed"
-        },
-        _ => {
-            &parse_null_terminated_string((call_name + start_address) as (*const std::os::raw::c_char)).unwrap()
-        }
-    };
+    // let call_name = match call_name {
+    //     0 => {
+    //         "unnamed"
+    //     },
+    //     _ => {
+    //         &parse_null_terminated_string((call_name + start_address) as (*const std::os::raw::c_char)).unwrap()
+    //     }
+    // };
     // let call_name = ;
-    println!("------cage {} calls {} ({})", cageid, call_name, call_number);
+    // println!("------cage {} calls {} ({})", cageid, call_name, call_number);
     // Print all the arguments
     // println!("cage {} calls: {}", cageid, call_number);
     // println!("call_name: {}", call_name);
@@ -629,7 +624,6 @@ pub extern "C" fn lind_syscall_api(
 
         XSTAT_SYSCALL => {
             let fd_ptr =  (start_address + arg1) as *const u8;
-            println!("arg2: {:?}", arg2);
             let buf = match interface::get_statdatastruct(Arg::from_u64_as_statstruct(start_address + arg2)) {
                 Ok(val) => val,
                 Err(errno) => {
@@ -1671,29 +1665,10 @@ pub extern "C" fn lind_syscall_api(
             }
         }
 
-        // CLONE_SYSCALL => {
-        //     let clone_args = match interface::get_cloneargs(Arg::from_u64_as_clone_args(start_address + arg1)) {
-        //         Ok(val) => val,
-        //         Err(e) => {
-        //             return -1;
-        //         }
-        //     };
-
-        //     clone_args.child_tid = clone_args.child_tid + start_address;
-
-        //     interface::check_cageid(cageid);
-        //     unsafe {
-        //         CAGE_TABLE[cageid as usize]
-        //             .as_ref()
-        //             .unwrap()
-        //             .clone3_syscall(caller, clone_args)
-        //     }
-        // }
-
         _ => -1, // Return -1 for unknown syscalls
     };
     
-    println!("------cage {} calling {} returns {}", cageid, call_name, ret);
+    // println!("------cage {} calling {} returns {}", cageid, call_name, ret);
     ret
 }
 

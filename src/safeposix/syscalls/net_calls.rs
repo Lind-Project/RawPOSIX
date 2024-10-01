@@ -27,7 +27,7 @@ use libc::*;
 use std::{os::fd::RawFd, ptr};
 use bit_set::BitSet;
 
-static LIND_ROOT: &str = "/home/lind-wasm/lind_fs_root/";
+static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
 
 lazy_static! {
     // A hashmap used to store epoll mapping relationships 
@@ -188,8 +188,6 @@ impl Cage {
                 let c_str = CStr::from_ptr(sun_path_ptr);
                 let str_slice = c_str.to_str().expect("Failed to convert CStr to str");
                 
-                // println!("[bind] addr: {:?}", addr);
-                // println!("[bind] sun_path: {}", str_slice);
                 io::stdout().flush().unwrap();
             }
             // println!("[Bind] Error message: {:?}", err_msg);

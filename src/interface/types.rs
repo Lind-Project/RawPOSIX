@@ -229,7 +229,6 @@ pub union Arg {
     // pub dispatch_structsem: *mut sem_t,
     // pub dispatch_ifaddrs: *mut ifaddrs,
     pub dispatch_constiovecstruct: *const interface::IovecStruct,
-    pub dispatch_cloneargs: *mut interface::CloneArgStruct
 }
 
 use std::mem::size_of;
@@ -240,22 +239,6 @@ pub struct ClippedDirent {
     pub d_ino: u64,
     pub d_off: u64,
     pub d_reclen: u16,
-}
-
-#[derive(Copy, Clone, Default, Debug)]
-#[repr(C)]
-pub struct CloneArgStruct {
-    pub flags: u64,           // Flags that control the behavior of the child process
-    pub pidfd: u64,           // File descriptor to receive the child's PID
-    pub child_tid: u64,       // Pointer to a memory location where the child TID will be stored
-    pub parent_tid: u64,      // Pointer to a memory location where the parent's TID will be stored
-    pub exit_signal: u64,     // Signal to be sent when the child process exits
-    pub stack: u64,           // Address of the stack for the child process
-    pub stack_size: u64,      // Size of the stack for the child process
-    pub tls: u64,             // Thread-Local Storage (TLS) descriptor for the child thread
-    pub set_tid: u64,         // Pointer to an array of TIDs to be set in the child
-    pub set_tid_size: u64,    // Number of TIDs in the `set_tid` array
-    pub cgroup: u64,          // File descriptor for the cgroup to which the child process should be attached
 }
 
 pub const CLIPPED_DIRENT_SIZE: u32 = size_of::<interface::ClippedDirent>() as u32;
@@ -495,18 +478,6 @@ pub fn get_ioctlptrunion<'a>(union_argument: Arg) -> Result<&'a mut u8, i32> {
     ));
 }
 
-pub fn get_cloneargs<'a>(clone_args: Arg) -> Result<&'a mut CloneArgStruct, i32> {
-    let pointer = unsafe { clone_args.dispatch_cloneargs };
-    if !pointer.is_null() {
-        return Ok(unsafe { &mut *pointer });
-    }
-    return Err(syscall_error(
-        Errno::EFAULT,
-        "dispatcher",
-        "input data not valid",
-    ));
-}
-
 // pub fn get_ioctlptrunion(union_argument: Arg) -> Result<IoctlPtrUnion, i32> {
 //     return Ok(unsafe { union_argument.dispatch_ioctlptrunion });
 // }
@@ -660,7 +631,6 @@ pub fn get_sockaddr(union_argument: Arg, addrlen: u32) -> Result<interface::GenS
                 return Ok(interface::GenSockaddr::V6(unsafe { *v6_ptr }));
             }
             val => {
-                println!("val: {}", val);
                 return Err(syscall_error(
                     Errno::EOPNOTSUPP,
                     "dispatcher",
