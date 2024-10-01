@@ -32,36 +32,36 @@ const GETPID_SYSCALL: i32 = 31;
 
 const BIND_SYSCALL: i32 = 33; 
 const SEND_SYSCALL: i32 = 34; 
-const SENDTO_SYSCALL: i32 = 35; //can not find in fs_calls
+const SENDTO_SYSCALL: i32 = 35;
 const RECV_SYSCALL: i32 = 36;
-const RECVFROM_SYSCALL: i32 = 37; //can not find in fs_calls
+const RECVFROM_SYSCALL: i32 = 37; 
 const CONNECT_SYSCALL: i32 = 38;
 const LISTEN_SYSCALL: i32 = 39;
 const ACCEPT_SYSCALL: i32 = 40;
 
-const GETSOCKOPT_SYSCALL: i32 = 43;  //
+const GETSOCKOPT_SYSCALL: i32 = 43; 
 const SETSOCKOPT_SYSCALL: i32 = 44;
 const SHUTDOWN_SYSCALL: i32 = 45;
-const SELECT_SYSCALL: i32 = 46; //
+const SELECT_SYSCALL: i32 = 46;
 const GETCWD_SYSCALL: i32 = 47; 
 const POLL_SYSCALL: i32 = 48; 
-const SOCKETPAIR_SYSCALL: i32 = 49; //
+const SOCKETPAIR_SYSCALL: i32 = 49;
 const GETUID_SYSCALL: i32 = 50; 
 const GETEUID_SYSCALL: i32 = 51;
 const GETGID_SYSCALL: i32 = 52; 
 const GETEGID_SYSCALL: i32 = 53;
 const FLOCK_SYSCALL: i32 = 54;
 const EPOLL_CREATE_SYSCALL: i32 = 56;
-const EPOLL_CTL_SYSCALL: i32 = 57; //
-const EPOLL_WAIT_SYSCALL: i32 = 58; //
+const EPOLL_CTL_SYSCALL: i32 = 57;
+const EPOLL_WAIT_SYSCALL: i32 = 58;
 
 const SHMGET_SYSCALL: i32 = 62; 
 const SHMAT_SYSCALL: i32 = 63;
 const SHMDT_SYSCALL: i32 = 64;
-const SHMCTL_SYSCALL: i32 = 65; //
+const SHMCTL_SYSCALL: i32 = 65;
 
-const PIPE_SYSCALL: i32 = 66; //
-const PIPE2_SYSCALL: i32 = 67; //
+const PIPE_SYSCALL: i32 = 66;
+const PIPE2_SYSCALL: i32 = 67;
 const FORK_SYSCALL: i32 = 68;
 const EXEC_SYSCALL: i32 = 69;
 
@@ -75,12 +75,12 @@ const COND_DESTROY_SYSCALL: i32 = 76;
 const COND_WAIT_SYSCALL: i32 = 77;
 const COND_BROADCAST_SYSCALL: i32 = 78;
 const COND_SIGNAL_SYSCALL: i32 = 79;
-const COND_TIMEDWAIT_SYSCALL: i32 = 80; //other type
+const COND_TIMEDWAIT_SYSCALL: i32 = 80;
 
 const SEM_INIT_SYSCALL: i32 = 91;
 const SEM_WAIT_SYSCALL: i32 = 92;
 const SEM_TRYWAIT_SYSCALL: i32 = 93;
-const SEM_TIMEDWAIT_SYSCALL: i32 = 94; // type
+const SEM_TIMEDWAIT_SYSCALL: i32 = 94;
 const SEM_POST_SYSCALL: i32 = 95;
 const SEM_DESTROY_SYSCALL: i32 = 96;
 const SEM_GETVALUE_SYSCALL: i32 = 97;
@@ -97,14 +97,14 @@ const FCHMOD_SYSCALL: i32 = 134;
 
 const SOCKET_SYSCALL: i32 = 136;
 
-const GETSOCKNAME_SYSCALL: i32 = 144; //
-const GETPEERNAME_SYSCALL: i32 = 145; //
+const GETSOCKNAME_SYSCALL: i32 = 144;
+const GETPEERNAME_SYSCALL: i32 = 145;
 const GETIFADDRS_SYSCALL: i32 = 146;
 
 const SIGACTION_SYSCALL: i32 = 147;
 const KILL_SYSCALL: i32 = 148;
-const SIGPROCMASK_SYSCALL: i32 = 149; //
-const SETITIMER_SYSCALL: i32 = 150; //
+const SIGPROCMASK_SYSCALL: i32 = 149;
+const SETITIMER_SYSCALL: i32 = 150;
 
 const FCHDIR_SYSCALL: i32 = 161;
 const FSYNC_SYSCALL: i32 = 162;
@@ -757,7 +757,6 @@ pub extern "C" fn lind_syscall_api(
             }
         }
         
-        //testing
         DUP_SYSCALL => {
             let fd = arg1 as i32;
             let fd2: Option<i32> = if arg1 <= i32::MAX as u64 {
@@ -813,8 +812,6 @@ pub extern "C" fn lind_syscall_api(
                     .fstat_syscall(fd, buf)
             }
         }
-
-        //adding without testing
         
         UNLINK_SYSCALL => {
             let fd_ptr = (start_address + arg1) as *const u8;
