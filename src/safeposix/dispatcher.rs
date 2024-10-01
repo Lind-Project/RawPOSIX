@@ -1639,28 +1639,6 @@ pub extern "C" fn lind_syscall_api(
         //     ret
         // }
 
-        EXEC_SYSCALL => {
-            interface::check_cageid(cageid);
-            let child_cageid = arg1 as u64;
-            unsafe {
-                CAGE_TABLE[cageid as usize]
-                    .as_ref()
-                    .unwrap()
-                    .exec_syscall(child_cageid)
-            }
-        }
-
-        EXIT_SYSCALL => {
-            interface::check_cageid(cageid);
-            let status = arg1 as i32;
-            unsafe {
-                CAGE_TABLE[cageid as usize]
-                    .as_ref()
-                    .unwrap()
-                    .exit_syscall(status)
-            }
-        }
-
         FUTEX_SYSCALL => {
             let uaddr = (start_address + arg1) as u64;
             let futex_op = arg2 as u32;
