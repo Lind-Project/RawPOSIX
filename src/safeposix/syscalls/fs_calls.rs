@@ -1889,6 +1889,8 @@ impl Cage {
         unsafe { syscall(SYS_futex, uaddr, futex_op, val, val2, uaddr2, val3)  as i32 }
     }
     
+    //We directly call nanosleep syscall(SYS_clock_nanosleep) from the libc
+    //return an `i32` value representing the result of the system call.
     pub fn nanosleep_time64_syscall(&self, clockid: u32, flags: i32, req: usize, rem: usize) -> i32 {
         unsafe { syscall(SYS_clock_nanosleep, clockid, flags, req, rem)  as i32 }
     }
