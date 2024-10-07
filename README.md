@@ -29,19 +29,19 @@ To gain access, use the following SSH command format:
 #### Permission Denied
 - **Description**: This usually means that the password is incorrect. Please try to recall the correct password or contact seniors for assistance, or ask for help in the Slack channel.
 
-  ![Permission Denied](Screenshot%202024-10-07%20at%203.22.14%20PM.png)
+  ![Permission Denied](assets/permission-denied.readme.png)
 
 #### Operation Timed Out / Unable to Resolve Host
 - **Description**: This error generally means that your network is incorrect or unavailable.
 
-  ![Operation Timed Out](Screenshot%202024-10-07%20at%203.21.53%20PM.png)
+  ![Operation Timed Out](assets/timed-out.readme.png)
 
 ### Network Verification
 To verify network connectivity, follow these steps:
 
 1. **Are you on an on-campus network?**
 
-   ![On-campus Network](Screenshot%202024-10-07%20at%203.22.29%20PM.png)
+   ![On-campus Network](assets/network.readme.png)
 
 2. If connected but still unable to access, contact seniors or use the Slack channel for support.
 
@@ -49,7 +49,7 @@ To verify network connectivity, follow these steps:
 
 ## Running Docker
 ### Running the Docker Container
-![Running Docker](Screenshot%202024-10-07%20at%203.22.47%20PM.png)
+![Running Docker](assets/docker.readme.png)
 
 Once you have SSH access, run the Docker container with the following command:
 
@@ -198,7 +198,7 @@ cargo test ut_lind_fs_mkdir_invalid_modebits
 - **Requirement**: Comments are required for new code to ensure others can understand it.
 - **Future Improvements**: Reference the relevant GitHub issue for any future improvements.
 
-  ![Comment Example](Screenshot%202024-10-07%20at%203.23.26%20PM.png)
+  ![Comment Example](assets/comments.readme.png)
 
 ## Run RustPOSIX-Rust
 
