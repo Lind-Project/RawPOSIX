@@ -790,12 +790,16 @@ impl Cage {
                     return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor");
                 }
             }
-        }
-        
-        // Do type conversion to translate from c_void into i32
-        unsafe {
-            ((libc::mmap(addr as *mut c_void, len, prot, flags, -1, off) as i64) 
-                & 0xffffffff) as i32
+        } else {
+            // Handle mmap with fd = -1 (anonymous memory mapping or special case)
+            let ret = unsafe {
+                libc::mmap(addr as *mut c_void, len, prot, flags, -1, off) as i64
+            };
+            // Check if mmap failed and return the appropriate error if so
+            if ret == -1 {
+                return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
+            }
+            return (ret & 0xffffffff) as i32;
         }
     }
 
@@ -1060,10 +1064,17 @@ impl Cage {
     *   - null, fail 
     */
     pub fn getcwd_syscall(&self, buf: *mut u8, bufsize: u32) -> i32 {
+        if (!buf.is_null() && bufsize == 0) || (buf.is_null() && bufsize != 0) {
+            return syscall_error(Errno::EINVAL, "getcwd", "Invalid arguments");
+        }
+        
         let cwd_container = self.cwd.read();
         let path = cwd_container.to_str().unwrap();
-        if path.len() >= bufsize as usize {
-            return -1;
+        // The required size includes the null terminator
+        let required_size = path.len() + 1;
+        if required_size > bufsize as usize {
+            unsafe { *libc::__errno_location() = libc::ERANGE };
+            return -libc::ERANGE;
         }
         unsafe {
             ptr::copy(path.as_ptr(), buf, path.len());
