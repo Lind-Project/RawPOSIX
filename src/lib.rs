@@ -4,11 +4,155 @@
 #![feature(thread_local)]
 #![allow(unused_imports)]
 #![feature(hash_extract_if)]
+#![allow(dead_code)]
 
 // interface and safeposix are public because otherwise there isn't a great
 // way to 'use' them for benchmarking.
 pub mod interface;
-// mod lib_fs_utils;
 pub mod safeposix;
 pub mod tests;
 pub mod fdtables;
+
+use std::sync::{Condvar, Mutex};
+
+use crate::safeposix::dispatcher::*;
+
+#[macro_export]
+macro_rules! dispatch {
+    ($cageid:expr, $callnum:expr) => {
+        dispatcher(
+            $cageid, $callnum, BLANKARG, BLANKARG, BLANKARG, BLANKARG, BLANKARG, BLANKARG,
+        )
+    };
+    ($cageid:expr, $callnum:expr, $arg1:expr) => {
+        dispatcher(
+            $cageid, $callnum, $arg1, BLANKARG, BLANKARG, BLANKARG, BLANKARG, BLANKARG,
+        )
+    };
+    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr) => {
+        dispatcher(
+            $cageid, $callnum, $arg1, $arg2, BLANKARG, BLANKARG, BLANKARG, BLANKARG,
+        )
+    };
+    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr) => {
+        dispatcher(
+            $cageid, $callnum, $arg1, $arg2, $arg3, BLANKARG, BLANKARG, BLANKARG,
+        )
+    };
+    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr) => {
+        dispatcher(
+            $cageid, $callnum, $arg1, $arg2, $arg3, $arg4, BLANKARG, BLANKARG,
+        )
+    };
+    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $arg5:expr) => {
+        dispatcher(
+            $cageid, $callnum, $arg1, $arg2, $arg3, $arg4, $arg5, BLANKARG,
+        )
+    };
+    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $arg5:expr, $arg6:expr) => {
+        dispatcher($cageid, $callnum, $arg1, $arg2, $arg3, $arg4, $arg5, $arg6)
+    };
+}
+
+pub fn lind_lindrustinit(verbosity: i32) {
+    unsafe {
+        lindrustinit(verbosity as isize);
+    }
+}
+
+pub fn lind_lindrustfinalize() {
+    unsafe {
+        lindrustfinalize();
+    }
+}
+
+pub fn lind_rustposix_thread_init(cageid: u64, signalflag: u64) {
+    unsafe {
+        rustposix_thread_init(cageid, signalflag);
+    }
+}
+
+pub fn lind_write_inner(fd: i32, buf: *const u8, count: usize, cageid: u64) {
+    unsafe {
+        quick_write(fd, buf, count, cageid);
+    }
+}
+
+pub fn lind_fork(parent_cageid: u64, child_cageid: u64) -> i32 {
+    unsafe {
+        lind_syscall_api(
+            parent_cageid,
+            68 as u32,
+            0,
+            0,
+            child_cageid,
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+    }
+}
+
+pub fn lind_exit(cageid: u64, status: i32) -> i32 {
+    unsafe {
+        lind_syscall_api(
+            cageid,
+            30 as u32,
+            0,
+            0,
+            status as u64,
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+    }
+}
+
+pub fn lind_exec(parent_cageid: u64, child_cageid: u64) -> i32 {
+    unsafe {
+        lind_syscall_api(
+            parent_cageid,
+            69 as u32,
+            0,
+            0,
+            child_cageid,
+            0,
+            0,
+            0,
+            0,
+            0,
+        )
+    }
+}
+
+pub fn lind_syscall_inner(
+    cageid: u64,
+    call_number: u32,
+    call_name: u64,
+    start_address: u64,
+    arg1: u64,
+    arg2: u64,
+    arg3: u64,
+    arg4: u64,
+    arg5: u64,
+    arg6: u64,
+) -> i32 {
+    unsafe {
+        lind_syscall_api(
+            cageid,
+            call_number,
+            call_name,
+            start_address,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6,
+        )
+    }
+}
