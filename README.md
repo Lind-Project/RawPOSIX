@@ -1,6 +1,4 @@
-# RustPOSIX [![Build Status](https://github.com/Lind-Project/safeposix-rust/actions/workflows/lind-selfhost.yml/badge.svg?branch=develop)](https://github.com/Lind-Project/safeposix-rust/actions/workflows/lind-selfhost.yml)
-
-More implementation details could be found at [wiki](https://github.com/Lind-Project/lind-docs/blob/main/docs/RustPOSIX/Home.md).
+# RawPOSIX [![Build Status](https://github.com/Lind-Project/safeposix-rust/actions/workflows/lind-selfhost.yml/badge.svg?branch=develop)](https://github.com/Lind-Project/safeposix-rust/actions/workflows/lind-selfhost.yml)
 
 ## Contents
 
@@ -200,7 +198,7 @@ cargo test ut_lind_fs_mkdir_invalid_modebits
 
   ![Comment Example](assets/comments.readme.png)
 
-## Run RustPOSIX-Rust
+## Run RawPOSIX-Rust
 
 Quick start
 Use Develop branch for the most stable behaviour.
@@ -223,5 +221,3 @@ See reference at [Testing and Debugging](https://github.com/Lind-Project/lind-do
 * All PRs should be merged to the Develop branch
 
 * Any imports from the standard library or any crates should be done in an interface file
-
-More detailed guideline will be in [RustPOSIX's wiki](https://github.com/Lind-Project/lind-docs/blob/main/docs/RustPOSIX/Style-Guide.md)
