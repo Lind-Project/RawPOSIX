@@ -3586,9 +3586,20 @@ pub mod fs_tests {
         // "/dev/zero" file, which should return 100 bytes of "0" filled
         // characters.
         let path = "/dev/zero";
+        if cage.access_syscall(path, F_OK) != 0 {
+            let fd = cage.open_syscall(path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA);
+            // Write 100 bytes of 0 to mimic /dev/zero behavior
+            let write_data = vec![0u8; 100];
+            assert_eq!(cage.write_syscall(fd, write_data.as_ptr(), 100), 100, "Failed to write zeros to /dev/zero");
+            assert_eq!(cage.close_syscall(fd), 0);
+        }
+        // Open the test file again for reading
         let fd = cage.open_syscall(path, O_RDWR, S_IRWXA);
 
         // Verify if the returned count of bytes is 100.
+        // Seek to the beginning of the file
+        assert_eq!(cage.lseek_syscall(fd, 0, libc::SEEK_SET), 0, "Failed to seek to the beginning of /dev/zero");
+        // Read 100 bytes from the file
         let mut read_bufzero = sizecbuf(100);
         assert_eq!(cage.read_syscall(fd, read_bufzero.as_mut_ptr(), 100), 100);
         // Verify if the characters present in the buffer are all "0".
