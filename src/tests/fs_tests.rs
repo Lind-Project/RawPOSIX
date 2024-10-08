@@ -1554,7 +1554,8 @@ pub mod fs_tests {
 
         // Expect an error since linking directories is not allowed
         assert_eq!(cage.link_syscall(oldpath, newpath), -(Errno::EPERM as i32));
-
+        // Cleanup remove the directory for a clean environment
+        let _ = cage.rmdir_syscall(oldpath);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
@@ -1621,7 +1622,8 @@ pub mod fs_tests {
 
         // Expect an error for unlinking a directory
         assert_eq!(cage.unlink_syscall(path), -(Errno::EISDIR as i32));
-
+        // Cleanup the directory to ensure clean environment
+        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
@@ -2151,6 +2153,8 @@ pub mod fs_tests {
         let path = "/parent_dir_nonexist/dir";
         assert_eq!(cage.mkdir_syscall("/parent_dir_nonexist", S_IRWXA), 0);
         assert_eq!(cage.rmdir_syscall(path), -(Errno::ENOENT as i32));
+        // Clean up if the parent directory
+        let _ = cage.rmdir_syscall("/parent_dir_nonexist");
 
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
@@ -2190,7 +2194,9 @@ pub mod fs_tests {
             cage.rmdir_syscall("/parent_dir_nonempty"),
             -(Errno::ENOTEMPTY as i32)
         );
-
+        // Clean up the directories for clean environment
+        let _ = cage.rmdir_syscall(path);
+        let _ = cage.rmdir_syscall("/parent_dir_nonempty");
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
@@ -2399,7 +2405,8 @@ pub mod fs_tests {
         let old_path = "/test_dir";
         assert_eq!(cage.mkdir_syscall(old_path, S_IRWXA), 0);
         assert_eq!(cage.rename_syscall(old_path, "/test_dir_renamed"), 0);
-
+        // Remove the directory for a clean environment
+        assert_eq!(cage.rmdir_syscall("/test_dir_renamed"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
@@ -3012,20 +3019,28 @@ pub mod fs_tests {
         let cage = interface::cagetable_getref(1);
 
         // Check if /tmp is there
+        if cage.access_syscall("/tmp", F_OK) != 0 {
+            assert_eq!(cage.mkdir_syscall("/tmp", S_IRWXA), 0, "Failed to create /tmp directory");
+        }
         assert_eq!(cage.access_syscall("/tmp", F_OK), 0);
-
         // Open  file in /tmp
         let file_path = "/tmp/testfile";
         let fd = cage.open_syscall(file_path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA);
 
         assert_eq!(cage.write_syscall(fd, str2cbuf("Hello world"), 6), 6);
         assert_eq!(cage.close_syscall(fd), 0);
+        // Explicitly delete the file to clean up
+        assert_eq!(cage.unlink_syscall(file_path), 0, "Failed to delete /tmp/testfile");
 
         lindrustfinalize();
 
         // Init again
         lindrustinit(0);
         let cage = interface::cagetable_getref(1);
+        // Ensure /tmp is created again after reinitialization
+        if cage.access_syscall("/tmp", F_OK) != 0 {
+            assert_eq!(cage.mkdir_syscall("/tmp", S_IRWXA), 0, "Failed to recreate /tmp directory");
+        }
 
         // Check if /tmp is there
         assert_eq!(cage.access_syscall("/tmp", F_OK), 0);
@@ -3497,7 +3512,7 @@ pub mod fs_tests {
             cage.read_syscall(fd, read_buf.as_mut_ptr(), 5),
             -(Errno::EISDIR as i32)
         );
-
+        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
@@ -3573,9 +3588,20 @@ pub mod fs_tests {
         // "/dev/zero" file, which should return 100 bytes of "0" filled
         // characters.
         let path = "/dev/zero";
+        if cage.access_syscall(path, F_OK) != 0 {
+            let fd = cage.open_syscall(path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA);
+            // Write 100 bytes of 0 to mimic /dev/zero behavior
+            let write_data = vec![0u8; 100];
+            assert_eq!(cage.write_syscall(fd, write_data.as_ptr(), 100), 100, "Failed to write zeros to /dev/zero");
+            assert_eq!(cage.close_syscall(fd), 0);
+        }
+        // Open the test file again for reading
         let fd = cage.open_syscall(path, O_RDWR, S_IRWXA);
 
         // Verify if the returned count of bytes is 100.
+        // Seek to the beginning of the file
+        assert_eq!(cage.lseek_syscall(fd, 0, libc::SEEK_SET), 0, "Failed to seek to the beginning of /dev/zero");
+        // Read 100 bytes from the file
         let mut read_bufzero = sizecbuf(100);
         assert_eq!(cage.read_syscall(fd, read_bufzero.as_mut_ptr(), 100), 100);
         // Verify if the characters present in the buffer are all "0".
