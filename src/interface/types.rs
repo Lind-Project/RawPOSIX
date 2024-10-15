@@ -298,7 +298,6 @@ pub fn get_mutcbuf_null(union_argument: Arg) -> Result<Option<*mut u8>, i32> {
 pub fn get_fdset(union_argument: Arg) -> Result<Option<&'static mut fd_set>, i32> {
     let data: *mut libc::fd_set = unsafe { union_argument.dispatch_fdset };
     if !data.is_null() {
-        // let internal_fds: &mut interface::FdSet = interface::FdSet::new_from_ptr(data);
         let internal_fds = unsafe { &mut *(data as *mut fd_set) };
         return Ok(Some(internal_fds));
     }
