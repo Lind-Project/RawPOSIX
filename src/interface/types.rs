@@ -13,23 +13,6 @@ const SIZEOF_SOCKADDR: u32 = 16;
 //derive eq attributes for testing whether the structs equal other fsdata structs from stat/fstat
 #[derive(Eq, PartialEq)]
 #[repr(C)]
-// pub struct FSData {
-//     pub f_type: u64,
-//     pub f_bsize: i64,
-//     pub f_blocks: u64,
-//     pub f_bfree: u64,
-//     pub f_bavail: u64,
-//     //total files in the file system -- should be infinite
-//     pub f_files: u64,
-//     //free files in the file system -- should be infinite
-//     pub f_ffiles: u64,
-//     pub f_fsid: libc::fsid_t,
-//     //not really a limit for naming, but 254 works
-//     // pub f_namelen: u64,
-//     //arbitrary val for blocksize as well
-//     // pub f_frsize: u64,
-//     // pub f_spare: [u8; 32],
-// }
 pub struct FSData {
     pub f_type: u64,
     pub f_bsize: u64,
@@ -193,41 +176,28 @@ pub union Arg {
     pub dispatch_mutcbuf: *mut u8, //Typically corresponds to a mutable void* pointer as in read
     pub dispatch_cstr: *const i8, //Typically corresponds to a passed in string of type char*, as in open
     pub dispatch_cstrarr: *const *const i8, //Typically corresponds to a passed in string array of type char* const[] as in execve
-    // pub dispatch_rlimitstruct: *mut Rlimit,
-    // pub dispatch_statdatastruct: *mut stat,
     pub dispatch_statdatastruct: *mut StatData,
-    // pub dispatch_fsdatastruct: *mut statfs,
     pub dispatch_fsdatastruct: *mut FSData,
     pub dispatch_shmidstruct: *mut ShmidsStruct,
     pub dispatch_constsockaddrstruct: *const SockaddrDummy,
     pub dispatch_sockaddrstruct: *mut SockaddrDummy,
-    // pub dispatch_constsockaddrstruct: *const sockaddr,
-    // pub dispatch_sockaddrstruct: *mut sockaddr,
     pub dispatch_socklen_t_ptr: *mut u32,
     pub dispatch_intptr: *mut i32,
     pub dispatch_pollstructarray: *mut PollStruct,
     pub dispatch_epollevent: *mut EpollEvent,
-    // pub dispatch_epollevent: *mut epoll_event,
-    // pub dispatch_structtimeval: *mut TimeVal,
     pub dispatch_structtimeval: *mut timeval,
     pub dispatch_structtimespec_lind: *mut TimeSpec,
     pub dispatch_structtimespec: *mut timespec,
     pub dispatch_pipearray: *mut PipeArray,
     pub dispatch_sockpair: *mut SockPair,
-    // pub dispatch_ioctlptrunion: IoctlPtrUnion,
     pub dispatch_ioctlptrunion: *mut u8,
     pub dispatch_sigactionstruct: *mut SigactionStruct,
     pub dispatch_constsigactionstruct: *const SigactionStruct,
     pub dispatch_sigsett: *mut SigsetType,
     pub dispatch_constsigsett: *const SigsetType,
     pub dispatch_structitimerval: *mut ITimerVal,
-    // pub dispatch_structitimerval: *mut itimerval,
     pub dispatch_conststructitimerval: *const ITimerVal,
-    // pub dispatch_conststructitimerval: *const itimerval,
-    // pub dispatch_fdset: *mut BitSet,
     pub dispatch_fdset: *mut libc::fd_set,
-    // pub dispatch_structsem: *mut sem_t,
-    // pub dispatch_ifaddrs: *mut ifaddrs,
     pub dispatch_constiovecstruct: *const interface::IovecStruct,
 }
 
@@ -335,23 +305,6 @@ pub fn get_fdset(union_argument: Arg) -> Result<Option<&'static mut fd_set>, i32
     return Ok(None);
 }
 
-// pub fn get_fdset(union_argument: Arg) -> Result<Option<&'static mut interface::FdSet>, i32> {
-//     let data: *mut libc::fd_set = unsafe { union_argument.dispatch_fdset };
-//     if !data.is_null() {
-//         let internal_fds: &mut interface::FdSet = interface::FdSet::new_from_ptr(data);
-//         return Ok(Some(internal_fds));
-//     }
-//     return Ok(None);
-// }
-
-// pub fn get_fdset<'a>(union_argument: Arg) -> Result<*mut BitSet, i32> {
-//     let pointer = unsafe { union_argument.dispatch_fdset };
-//     // if !pointer.is_null() {
-//     //     return Ok(pointer);
-//     // }
-//     return Ok(pointer);
-// }
-
 pub fn get_cstr<'a>(union_argument: Arg) -> Result<&'a str, i32> {
     //first we check that the pointer is not null
     //and then we check so that we can get data from the memory
@@ -406,17 +359,6 @@ pub fn get_cstrarr<'a>(union_argument: Arg) -> Result<Vec<&'a str>, i32> {
     ));
 }
 
-// pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut stat, i32> {
-//     let pointer = unsafe { union_argument.dispatch_statdatastruct };
-//     if !pointer.is_null() {
-//         return Ok(unsafe { &mut *pointer });
-//     }
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
 pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut StatData, i32> {
     let pointer = unsafe { union_argument.dispatch_statdatastruct };
     if !pointer.is_null() {
@@ -429,17 +371,6 @@ pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut StatData, i
     ));
 }
 
-// pub fn get_fsdatastruct<'a>(union_argument: Arg) -> Result<&'a mut statfs, i32> {
-//     let pointer = unsafe { union_argument.dispatch_fsdatastruct };
-//     if !pointer.is_null() {
-//         return Ok(unsafe { &mut *pointer });
-//     }
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
 pub fn get_fsdatastruct<'a>(union_argument: Arg) -> Result<&'a mut FSData, i32> {
     let pointer = unsafe { union_argument.dispatch_fsdatastruct };
     if !pointer.is_null() {
@@ -478,68 +409,6 @@ pub fn get_ioctlptrunion<'a>(union_argument: Arg) -> Result<&'a mut u8, i32> {
     ));
 }
 
-
-// pub fn get_ioctlptrunion(union_argument: Arg) -> Result<IoctlPtrUnion, i32> {
-//     return Ok(unsafe { union_argument.dispatch_ioctlptrunion });
-// }
-
-// pub fn get_ioctl_int<'a>(ptrunion: IoctlPtrUnion) -> Result<i32, i32> {
-//     let pointer = unsafe { ptrunion.int_ptr };
-//     if !pointer.is_null() {
-//         return Ok(unsafe { *pointer });
-//     }
-//     return Err(syscall_error(Errno::EFAULT, "ioctl", "argp is not valid"));
-// }
-
-// pub fn get_ioctl_char<'a>(ptrunion: IoctlPtrUnion) -> Result<u8, i32> {
-//     let pointer = unsafe { ptrunion.c_char_ptr };
-//     if !pointer.is_null() {
-//         return Ok(unsafe { *pointer });
-//     }
-//     return Err(syscall_error(Errno::EFAULT, "ioctl", "argp is not valid"));
-// }
-
-/// Given the vector of tuples produced from getdents_syscall, each of which consists of
-/// a ClippedDirent struct and a u8 vector representing the name, and also given the
-/// pointer to the base of the buffer to which the getdents structs should be copied,
-/// populate said buffer with these getdents structs and the names at the requisite locations
-///
-/// We assume a number of things about the tuples that are input:
-///
-/// 1. The name in the u8 vec is null terminated
-/// 2. After being null terminated it is then padded to the next highest 8 byte boundary
-/// 3. After being padded, the last byte of padding is populated with DT_UNKNOWN (0) for now,
-/// as the d_type field does not have to be fully implemented for getdents to be POSIX compliant
-/// 4. All fields in the clipped dirent,  are correctly filled--i.e. d_off has the correct offset
-/// of the next struct in the buffer and d_reclen has the length of the struct with the padded name
-/// 5. The number of tuples in the vector is such that they all fit in the buffer
-///
-/// There is enough information to produce a tuple vector that can satisfy these assumptions well
-/// in getdents syscall, and thus all the work to satisfy these assumptions should be done there
-// pub fn pack_dirents(dirtuplevec: Vec<(ClippedDirent, Vec<u8>)>, baseptr: *mut u8) {
-//     let mut curptr = baseptr;
-
-//     //for each tuple we write in the ClippedDirent struct, and then the padded name vec
-//     for dirtuple in dirtuplevec {
-//         //get pointer to start of next dirent in the buffer as a ClippedDirent pointer
-//         let curclippedptr = curptr as *mut ClippedDirent;
-//         //turn that pointer into a rust reference
-//         let curwrappedptr = unsafe { &mut *curclippedptr };
-//         //assign to the data that reference points to with the value of the ClippedDirent from the tuple
-//         *curwrappedptr = dirtuple.0;
-
-//         //advance pointer by the size of one ClippedDirent, std::mem::size_of should be added into the interface
-//         curptr = curptr.wrapping_offset(size_of::<ClippedDirent>() as isize);
-
-//         //write, starting from this advanced location, the u8 vec representation of the name
-//         unsafe { curptr.copy_from(dirtuple.1.as_slice().as_ptr(), dirtuple.1.len()) };
-
-//         //advance pointer by the size of name, which we assume to be null terminated and padded correctly
-//         //and thus we are finished with this struct
-//         curptr = curptr.wrapping_offset(dirtuple.1.len() as isize);
-//     }
-// }
-
 pub fn get_pipearray<'a>(union_argument: Arg) -> Result<&'a mut PipeArray, i32> {
     let pointer = unsafe { union_argument.dispatch_pipearray };
     if !pointer.is_null() {
@@ -563,18 +432,6 @@ pub fn get_sockpair<'a>(union_argument: Arg) -> Result<&'a mut SockPair, i32> {
         "input data not valid",
     ));
 }
-
-// pub fn get_sockaddr<'a>(union_argument: Arg) -> Result<&'a mut SockaddrDummy, i32> {
-//     let pointer = unsafe { union_argument.dispatch_sockaddrstruct };
-//     if !pointer.is_null() {
-//         return Ok(unsafe { &mut *pointer });
-//     }
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
 
 pub fn get_constsockaddr<'a>(union_argument: Arg) -> Result<&'a SockaddrDummy, i32> {
     let pointer = unsafe { union_argument.dispatch_constsockaddrstruct };
@@ -651,9 +508,6 @@ pub fn set_gensockaddr(union_argument: Arg, len_argument: Arg) -> Result<interfa
     let received = unsafe { union_argument.dispatch_sockaddrstruct };
     let received_addrlen = unsafe { len_argument.dispatch_socklen_t_ptr } as u32;
     let tmpsock = unsafe { &*received };
-    // println!("[Dispatcher set_gen] family: {:?}", tmpsock.sa_family);
-    // println!("[Dispathcer set_gen] len: {:?}", received_addrlen);
-    // io::stdout().flush().unwrap();
     match tmpsock.sa_family {
         /*AF_UNIX*/
         1 => {
@@ -678,7 +532,6 @@ pub fn set_gensockaddr(union_argument: Arg, len_argument: Arg) -> Result<interfa
                     "input length too small for family of sockaddr",
                 ));
             }
-            // let v4_ptr = pointer as *const interface::SockaddrV4;
             let v4_addr = interface::GenSockaddr::V4(interface::SockaddrV4::default());
             return Ok(v4_addr);
         }
@@ -691,22 +544,12 @@ pub fn set_gensockaddr(union_argument: Arg, len_argument: Arg) -> Result<interfa
                     "input length too small for family of sockaddr",
                 ));
             }
-            // let v6_ptr = pointer as *const interface::SockaddrV6;
             let v6_addr = interface::GenSockaddr::V6(interface::SockaddrV6::default());
             return Ok(v6_addr);
         }
         _ => {
-            // println!("[Dispatcher] tmpsock.sa_family: {:?}", tmpsock.sa_family);
-            // io::stdout().flush().unwrap();
             let null_addr = interface::GenSockaddr::Unix(interface::SockaddrUnix::default());
             return Ok(null_addr);
-            // let v4_addr = interface::GenSockaddr::V4(interface::SockaddrV4::default());
-            // return Ok(v4_addr);
-            // return Err(syscall_error(
-            //     Errno::EOPNOTSUPP,
-            //     "dispatcher",
-            //     "sockaddr family not supported",
-            // ))
         }
     }
 }
@@ -723,15 +566,10 @@ pub fn copy_out_sockaddr(union_argument: Arg, len_argument: Arg, gensock: interf
             let unixlen = size_of::<interface::SockaddrUnix>() as u32;
 
             let fullcopylen = interface::rust_min(initaddrlen, unixlen);
-            // println!("[Dispatcher copy] unixlen: {:?}", unixlen);
-            // println!("[Dispatcher copy] initaddrlen: {:?}", initaddrlen);
-            // println!("[Dispatcher copy] fullcopylen: {:?}", fullcopylen);
-            // io::stdout().flush().unwrap();
             unsafe {
                 std::ptr::copy(
                     (unixa) as *mut interface::SockaddrUnix as *mut u8,
                     copyoutaddr,
-                    // fullcopylen as usize,
                     initaddrlen as usize,
                 )
             };
@@ -744,15 +582,10 @@ pub fn copy_out_sockaddr(union_argument: Arg, len_argument: Arg, gensock: interf
             let v4len = size_of::<interface::SockaddrV4>() as u32;
             
             let fullcopylen = interface::rust_min(initaddrlen, v4len);
-            // println!("[Dispatcher copy] v4len: {:?}", v4len);
-            // println!("[Dispatcher copy] initaddrlen: {:?}", initaddrlen);
-            // println!("[Dispatcher copy] fullcopylen: {:?}", fullcopylen);
-            // io::stdout().flush().unwrap();
             unsafe {
                 std::ptr::copy(
                     (v4a) as *mut interface::SockaddrV4 as *mut u8,
                     copyoutaddr,
-                    // fullcopylen as usize,
                     initaddrlen as usize,
                 )
             };
@@ -769,7 +602,6 @@ pub fn copy_out_sockaddr(union_argument: Arg, len_argument: Arg, gensock: interf
                 std::ptr::copy(
                     (v6a) as *mut interface::SockaddrV6 as *mut u8,
                     copyoutaddr,
-                    // fullcopylen as usize,
                     initaddrlen as usize,
                 )
             };
@@ -833,17 +665,6 @@ pub fn get_epollevent<'a>(union_argument: Arg) -> Result<&'a mut EpollEvent, i32
         "input data not valid",
     ));
 }
-// pub fn get_epollevent<'a>(union_argument: Arg) -> Result<&'a mut epoll_event, i32> {
-//     let epolleventptr = unsafe { union_argument.dispatch_epollevent };
-//     if !epolleventptr.is_null() {
-//         return Ok(unsafe { &mut *epolleventptr });
-//     }
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
 
 pub fn get_socklen_t_ptr(union_argument: Arg) -> Result<u32, i32> {
     let socklenptr = unsafe { union_argument.dispatch_socklen_t_ptr };
@@ -901,17 +722,6 @@ pub fn get_itimerval<'a>(union_argument: Arg) -> Result<Option<&'a mut ITimerVal
         Ok(None)
     }
 }
-// pub fn get_itimerval<'a>(union_argument: Arg) -> Result<&'a mut itimerval, i32> {
-//     let pointer = unsafe { union_argument.dispatch_structitimerval };
-//     if !pointer.is_null() {
-//         return Ok(unsafe { &mut *pointer });
-//     } 
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
 
 pub fn get_constitimerval<'a>(union_argument: Arg) -> Result<Option<&'a ITimerVal>, i32> {
     let pointer = unsafe { union_argument.dispatch_conststructitimerval };
@@ -921,18 +731,6 @@ pub fn get_constitimerval<'a>(union_argument: Arg) -> Result<Option<&'a ITimerVa
         Ok(None)
     }
 }
-
-// pub fn get_constitimerval<'a>(union_argument: Arg) -> Result<&'a itimerval, i32> {
-//     let pointer = unsafe { union_argument.dispatch_conststructitimerval };
-//     if !pointer.is_null() {
-//         return Ok(unsafe { &*pointer });
-//     } 
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
 
 pub fn duration_fromtimespec(union_argument: Arg) -> Result<interface::RustDuration, i32> {
     let pointer = unsafe { union_argument.dispatch_structtimespec_lind };
@@ -1049,31 +847,3 @@ pub fn get_iovecstruct(union_argument: Arg) -> Result<*const interface::IovecStr
         "input data not valid",
     ));
 }
-
-// pub fn get_sem<'a>(union_argument: Arg) -> Result<&'a mut sem_t, i32> {
-//     let pointer = unsafe { union_argument.dispatch_structsem };
-//     if !pointer.is_null() {
-//         return Ok(unsafe {
-//             &mut *pointer
-//         });
-//     }
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
-
-// pub fn get_ifaddrs<'a>(union_argument: Arg) -> Result<&'a mut ifaddrs, i32> {
-//     let pointer = unsafe { *union_argument.dispatch_ifaddrs };
-//     if !pointer.is_null() {
-//         return Ok(unsafe {
-//             &mut *pointer
-//         });
-//     }
-//     return Err(syscall_error(
-//         Errno::EFAULT,
-//         "dispatcher",
-//         "input data not valid",
-//     ));
-// }
