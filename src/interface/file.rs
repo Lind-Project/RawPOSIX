@@ -1,7 +1,5 @@
 // // Author: Nicholas Renner
 // //
-// // File related interface
-// #![allow(dead_code)]
 
 use parking_lot::Mutex;
 use std::fs::{self, canonicalize, File, OpenOptions};
