@@ -1224,6 +1224,7 @@ impl Cage {
         let vsv_2 = fdtables::get_unused_virtual_fd(self.cageid, FDKIND_KERNEL, ksv_2 as u64, false, 0).unwrap();
         virtual_socket_vector.sock1 = vsv_1 as i32;
         virtual_socket_vector.sock2 = vsv_2 as i32;
+        
         return 0;
     }
 
