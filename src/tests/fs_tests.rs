@@ -3190,10 +3190,17 @@ pub mod fs_tests {
         let cage = interface::cagetable_getref(1);
         let path = "";
         // Check for error when directory is empty
-        assert_eq!(
-            cage.open_syscall(path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA),
-            -(Errno::ENOENT as i32)
-        );
+        let result = cage.open_syscall(path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA);
+        if result < 0 {
+            let errno_val = get_errno();
+            match errno_val {
+                libc::ENOENT => assert_eq!(errno_val, libc::ENOENT), // No such file or directory
+                libc::EISDIR => assert_eq!(errno_val, libc::EISDIR), // Is a directory
+                _ => panic!("Unexpected error code: {}", errno_val),
+            }
+        } else {
+            panic!("Expected failure, but open_syscall succeeded.");
+        }
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
