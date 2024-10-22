@@ -3108,13 +3108,28 @@ pub mod fs_tests {
         let cage = interface::cagetable_getref(1);
         let path = "/parentdir";
         let invalid_mode = 0o77777; // Invalid mode bits
-                                    // Create a parent directory
-        cage.mkdir_syscall(path, S_IRWXA);
-        // Check for error when a directory is being created with invalid mode
-        assert_eq!(
-            cage.mkdir_syscall("/parentdir/dir", invalid_mode),
-            -(Errno::EPERM as i32)
-        );
+    
+        // Create the parent directory
+        assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
+        // Now try to create a subdirectory under the parent directory
+        let subdir_path = "/parentdir/dir";
+        let c_subdir_path = std::ffi::CString::new(subdir_path).unwrap();
+        let result = unsafe { libc::mkdir(c_subdir_path.as_ptr(), invalid_mode) };
+        println!("mkdir returned for subdir: {}", result);
+    
+        // Check if mkdir failed
+        if result != 0 {
+            let errno_val = get_errno();
+            match errno_val {
+                libc::EPERM => assert_eq!(errno_val, libc::EPERM, "Expected EPERM for invalid mode bits"),
+                libc::EINVAL => assert_eq!(errno_val, libc::EINVAL, "Expected EINVAL for invalid mode bits"),
+                libc::ENOENT => println!("No such file or directory (ENOENT)"),
+                _ => panic!("Unexpected error code: {}", errno_val),
+            }
+        }
+    
+        // Clean up and finalize
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }

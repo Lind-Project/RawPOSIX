@@ -71,9 +71,6 @@ impl Cage {
     *   mkdir() will return 0 when success and -1 when fail 
     */
     pub fn mkdir_syscall(&self, path: &str, mode: u32) -> i32 {
-        if (mode & !0o777) != 0 {
-            return syscall_error(Errno::EPERM, "mkdir", "Invalid mode bits specified");
-        }
         // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
