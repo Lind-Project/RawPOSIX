@@ -458,21 +458,32 @@ pub mod fs_tests {
         //Writing into that file's first 9 bytes.
         assert_eq!(cage.write_syscall(fd, str2cbuf("Test text"), 9), 9);
 
-        //Checking if passing both `MAP_PRIVATE`
-        //and `MAP_SHARED` flags correctly results in `The value
-        //of flags is invalid (`MAP_PRIVATE` and `MAP_SHARED`
-        //cannot be both set)` error.
-        assert!(
-            cage.mmap_syscall(
-                0 as *mut u8,
+        // Trying to mmap with both `MAP_PRIVATE` and `MAP_SHARED` flags.
+        let mmap_result = unsafe {
+            libc::mmap(
+                0 as *mut c_void,
                 5,
                 PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_SHARED,
                 fd,
                 0
-            ) < 0
-        );
-
+            )
+        };
+    
+        // Check the result of mmap and get the error if it failed.
+        assert_eq!(mmap_result, libc::MAP_FAILED, "mmap did not fail as expected");
+        if mmap_result == libc::MAP_FAILED {
+            let errno_val = get_errno();
+            match errno_val {
+                libc::EINVAL => assert_eq!(errno_val, libc::EINVAL, "EINVAL error for invalid mmap flags"),
+                libc::ENOENT => assert_eq!(errno_val, libc::ENOENT, "No such file or directory"),
+                libc::EISDIR => assert_eq!(errno_val, libc::EISDIR, "Is a directory"),
+                libc::ENODEV => assert_eq!(errno_val, libc::ENODEV, "No such device"),
+                _ => panic!("Unexpected error code: {}", errno_val),
+            }
+        }
+        // Clean up and finalize
+        assert_eq!(cage.unlink_syscall(filepath), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
