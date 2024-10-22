@@ -2116,7 +2116,8 @@ pub mod fs_tests {
             cage.open_syscall(path, O_TRUNC, S_IRWXA),
             -(Errno::ENOENT as i32)
         );
-
+        // Clean up the parent directory for clean environment
+        assert_eq!(cage.rmdir_syscall("/parent_dir"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
