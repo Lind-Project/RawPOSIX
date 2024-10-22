@@ -2512,6 +2512,7 @@ pub mod fs_tests {
         }
 
         assert_eq!(cage.close_syscall(fd), 0);
+        // Clean up environment by removing the directory
         assert_eq!(cage.rmdir_syscall("/getdents"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
@@ -2539,6 +2540,7 @@ pub mod fs_tests {
 
         // Close the directory
         assert_eq!(cage.close_syscall(fd), 0);
+        // Clean up environment by removing the directory
         assert_eq!(cage.rmdir_syscall("/getdents"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
