@@ -4153,14 +4153,22 @@ pub mod fs_tests {
         // supported.
         let path = "/test_dir";
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
-        let fd = cage.open_syscall(path, O_WRONLY, S_IRWXA);
+        // Open the directory with O_RDONLY
+        let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
+        assert!(fd >= 0, "Failed to open directory: invalid file descriptor");
 
         let write_data = "hello";
+        // Attempt to pwrite to the directory, expecting EBADF.
+        let result = cage.pwrite_syscall(fd, write_data.as_ptr(), write_data.len(), 0);
+        // Expect EBADF (Bad file descriptor) as directories cannot be written to.
         assert_eq!(
-            cage.pwrite_syscall(fd, write_data.as_ptr(), write_data.len(), 0),
-            -(Errno::EISDIR as i32)
+            result,
+            -(Errno::EBADF as i32),
+            "Expected EBADF error when attempting to write to a directory"
         );
 
+        // Clean up
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
