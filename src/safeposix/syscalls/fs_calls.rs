@@ -1886,13 +1886,23 @@ impl Cage {
     //
     // to perform this we just directly pass futex's var args as unsigned 32 bit integers to syscall() with SYS_futex
     pub fn futex_syscall(&self, uaddr: u64, futex_op: u32, val: u32, val2: u32, uaddr2: u32, val3: u32) -> i32 {
-        unsafe { syscall(SYS_futex, uaddr, futex_op, val, val2, uaddr2, val3)  as i32 }
+        let ret = unsafe { syscall(SYS_futex, uaddr, futex_op, val, val2, uaddr2, val3)  as i32 };
+        if ret < 0 {
+            let errno = get_errno();
+            return handle_errno(errno, "fcntl");
+        }
+        ret
     }
     
     //We directly call nanosleep syscall(SYS_clock_nanosleep) from the libc
     //return an `i32` value representing the result of the system call.
     pub fn nanosleep_time64_syscall(&self, clockid: u32, flags: i32, req: usize, rem: usize) -> i32 {
-        unsafe { syscall(SYS_clock_nanosleep, clockid, flags, req, rem)  as i32 }
+        let ret = unsafe { syscall(SYS_clock_nanosleep, clockid, flags, req, rem)  as i32 };
+        if ret < 0 {
+            let errno = get_errno();
+            return handle_errno(errno, "fcntl");
+        }
+        ret
     }
 }
 

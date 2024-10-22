@@ -117,11 +117,6 @@ const CLONE_SYSCALL: i32 = 171;
 
 const NANOSLEEP_TIME64_SYSCALL : i32 = 181;
 
-use std::collections::HashMap;
-use std::hash::BuildHasherDefault;
-
-use libc::IPOPT_OPTVAL;
-
 use std::ffi::CString;
 
 use super::cage::*;

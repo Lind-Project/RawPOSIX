@@ -13,46 +13,7 @@ pub mod safeposix;
 pub mod tests;
 pub mod fdtables;
 
-use std::sync::{Condvar, Mutex};
-
 use crate::safeposix::dispatcher::*;
-
-#[macro_export]
-macro_rules! dispatch {
-    ($cageid:expr, $callnum:expr) => {
-        dispatcher(
-            $cageid, $callnum, BLANKARG, BLANKARG, BLANKARG, BLANKARG, BLANKARG, BLANKARG,
-        )
-    };
-    ($cageid:expr, $callnum:expr, $arg1:expr) => {
-        dispatcher(
-            $cageid, $callnum, $arg1, BLANKARG, BLANKARG, BLANKARG, BLANKARG, BLANKARG,
-        )
-    };
-    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr) => {
-        dispatcher(
-            $cageid, $callnum, $arg1, $arg2, BLANKARG, BLANKARG, BLANKARG, BLANKARG,
-        )
-    };
-    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr) => {
-        dispatcher(
-            $cageid, $callnum, $arg1, $arg2, $arg3, BLANKARG, BLANKARG, BLANKARG,
-        )
-    };
-    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr) => {
-        dispatcher(
-            $cageid, $callnum, $arg1, $arg2, $arg3, $arg4, BLANKARG, BLANKARG,
-        )
-    };
-    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $arg5:expr) => {
-        dispatcher(
-            $cageid, $callnum, $arg1, $arg2, $arg3, $arg4, $arg5, BLANKARG,
-        )
-    };
-    ($cageid:expr, $callnum:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $arg5:expr, $arg6:expr) => {
-        dispatcher($cageid, $callnum, $arg1, $arg2, $arg3, $arg4, $arg5, $arg6)
-    };
-}
 
 pub fn lind_lindrustinit(verbosity: i32) {
     unsafe {
