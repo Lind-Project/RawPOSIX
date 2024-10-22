@@ -2415,6 +2415,8 @@ pub mod fs_tests {
         let cage = interface::cagetable_getref(1);
 
         let old_path = "/test_dir";
+        // Clean up the directory if it exists
+        let _ = cage.rmdir_syscall(old_path);
         assert_eq!(cage.mkdir_syscall(old_path, S_IRWXA), 0);
         assert_eq!(cage.rename_syscall(old_path, "/test_dir_renamed"), 0);
         // Remove the directory for a clean environment
