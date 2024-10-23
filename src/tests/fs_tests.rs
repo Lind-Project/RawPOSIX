@@ -582,22 +582,25 @@ pub mod fs_tests {
         //are invalid for the object specified by `fildes`` error.
 
         /* Native linux will return EINVAL - TESTED locally */
-        assert_eq!(
-            cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, MAP_SHARED, fd, -10),
-            -(Errno::EINVAL as i32)
-        );
-
+        let result = cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, MAP_SHARED, fd, -10);
+        assert_eq!(result, -1, "Expected mmap to fail with -1 for negative offset");
+        // Verify errno is set to EINVAL
+        let errno = get_errno();
+        assert_eq!(errno, libc::EINVAL, "Expected errno to be EINVAL for negative offset");
         //Checking if passing an offset that seeks beyond the end
         //of the file correctly results in `Addresses in the
         //range [off,off+len) are invalid for the object specified
         //by `fildes`` error.
 
         /* Native linux will return EINVAL - TESTED locally */
-        assert_eq!(
-            cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 25),
-            -(Errno::EINVAL as i32)
-        );
-
+        let result_beyond_eof = cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 25);
+        assert_eq!(result_beyond_eof, -1, "Expected mmap to fail with -1 for offset beyond EOF");
+    
+        // Verify errno is set to EINVAL
+        let errno_beyond_eof = get_errno();
+        assert_eq!(errno_beyond_eof, libc::EINVAL, "Expected errno to be EINVAL for offset beyond EOF");
+        // Clean up and finalize
+        assert_eq!(cage.unlink_syscall(filepath), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
