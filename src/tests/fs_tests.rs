@@ -3108,7 +3108,9 @@ pub mod fs_tests {
         let cage = interface::cagetable_getref(1);
         let path = "/parentdir";
         let invalid_mode = 0o77777; // Invalid mode bits
-    
+
+        // Clear the directory if it exists
+        let _ = cage.rmdir_syscall(path);
         // Create the parent directory
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         // Now try to create a subdirectory under the parent directory
