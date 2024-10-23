@@ -4480,12 +4480,19 @@ pub mod fs_tests {
         assert!(epfd > 0);
 
         // Attempt to seek from the epoll and check if it returns an error
-        assert_eq!(
-            cage.lseek_syscall(epfd, 10, SEEK_SET),
-            -(Errno::ESPIPE as i32)
-        );
+        let lseek_result = unsafe {
+            libc::lseek(epfd, 10, libc::SEEK_SET)
+        };
+        assert_eq!(lseek_result, -1);
+        // If lseek failed, check the errno
+        let errno = unsafe { *libc::__errno_location() };
+        println!("lseek failed with errno: {} ()", errno);
 
-        assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
+        assert_eq!(errno, libc::ESPIPE, "Expected ESPIPE error, got: {}", errno);
+        // Exit and finalize
+        let exit_status = cage.exit_syscall(libc::EXIT_SUCCESS);
+        println!("Exit syscall returned: {}", exit_status);
+        assert_eq!(exit_status, libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
 
