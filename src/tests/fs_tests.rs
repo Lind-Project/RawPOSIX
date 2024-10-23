@@ -507,11 +507,14 @@ pub mod fs_tests {
         //Checking if trying to map a file that does not
         //allow reading correctly results in `File descriptor
         //is not open for reading` error.
-        assert_eq!(
-            cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0),
-            -(Errno::EACCES as i32)
-        );
-
+        let mmap_result = cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        assert_eq!(mmap_result, -1, "Expected mmap to fail");
+        // Fetch and print the errno for debugging
+        let error = get_errno();
+        // Assert that the error is EACCES (Permission denied)
+        assert_eq!(error, libc::EACCES, "Expected errno to be EACCES for no read permission");
+        // Clean up and finalize
+        assert_eq!(cage.unlink_syscall(filepath), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
