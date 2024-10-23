@@ -4486,12 +4486,9 @@ pub mod fs_tests {
         assert_eq!(lseek_result, -1);
         // If lseek failed, check the errno
         let errno = unsafe { *libc::__errno_location() };
-        println!("lseek failed with errno: {} ()", errno);
-
         assert_eq!(errno, libc::ESPIPE, "Expected ESPIPE error, got: {}", errno);
         // Exit and finalize
         let exit_status = cage.exit_syscall(libc::EXIT_SUCCESS);
-        println!("Exit syscall returned: {}", exit_status);
         assert_eq!(exit_status, libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
