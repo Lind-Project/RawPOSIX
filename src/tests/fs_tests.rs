@@ -3162,30 +3162,46 @@ pub mod fs_tests {
 
         let cage = interface::cagetable_getref(1);
         let path = "/parentdir";
-        // Create a parent directory
-        cage.mkdir_syscall(path, S_IRWXA);
+        // Clear the directory if it exists
+        let _ = cage.rmdir_syscall("/parentdir/dir");
+        let _ = cage.rmdir_syscall(path);
 
-        // Get the stat data for the parent directory and check for inode link count to
-        // be 3 initially
+        // Create a parent directory
+        assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
+
+        // Get the stat data for the parent directory and check for inode link count to be 2 initially
+        // Explanation: A newly created directory has a link count of 2:
+        // 1. A self-link (.) pointing to itself.
+        // 2. A link from the parent directory (in this case, the root directory).
+        // Previously, this was incorrectly checked as 3, but the correct count is 2.
         let mut statdata = StatData::default();
         assert_eq!(cage.stat_syscall(path, &mut statdata), 0);
-        assert_eq!(statdata.st_nlink, 3);
+        assert_eq!(statdata.st_nlink, 2);  // Corrected from 3 to 2
 
-        // Create a child directory inside parent directory with valid mode bits
+        // Create a child directory inside the parent directory with valid mode bits
         assert_eq!(cage.mkdir_syscall("/parentdir/dir", S_IRWXA), 0);
 
-        // Get the stat data for the child directory and check for inode link count to
-        // be 3 initially
+        // Get the stat data for the child directory and check for inode link count to be 2 initially
+        // Explanation: Similar to the parent directory, the newly created child directory will also
+        // have a link count of 2:
+        // 1. A self-link (.).
+        // 2. A link (..) back to the parent directory (/parentdir).
         let mut statdata2 = StatData::default();
         assert_eq!(cage.stat_syscall("/parentdir/dir", &mut statdata2), 0);
-        assert_eq!(statdata2.st_nlink, 3);
+        assert_eq!(statdata2.st_nlink, 2);  // Child directory should have link count of 2
 
-        // Get the stat data for the parent directory and check for inode link count to
-        // be 4 now as a new child directory has been created.
+        // Get the stat data for the parent directory and check for inode link count to be 3 now
+        // Explanation: After creating the child directory (/parentdir/dir), the parent directory's
+        // link count increases by 1 because the child directory's (..) entry points back to the parent.
+        // Initially, the parent had a link count of 2, but after adding the child directory, it becomes 3.
+        // Previously, this was incorrectly checked as 4, but the correct count is 3.
         let mut statdata3 = StatData::default();
         assert_eq!(cage.stat_syscall(path, &mut statdata3), 0);
-        assert_eq!(statdata3.st_nlink, 4);
+        assert_eq!(statdata3.st_nlink, 3);  // Corrected from 4 to 3
 
+        // Clean up and finalize
+        assert_eq!(cage.rmdir_syscall("/parentdir/dir"), 0);
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
