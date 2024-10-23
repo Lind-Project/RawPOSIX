@@ -1764,6 +1764,8 @@ pub mod fs_tests {
 
         // Create the directory for the oldpath with the parent not having read
         // permission. Currently assigning "Write only" permissions
+        // Remove the directory if it already exists
+        let _ = cage.rmdir_syscall("/invalidtestdir");
         assert_eq!(cage.mkdir_syscall("/invalidtestdir", 0o200), 0);
         assert_eq!(
             cage.open_syscall(oldpath, O_CREAT | O_EXCL | O_WRONLY, 0o200),
@@ -1777,7 +1779,8 @@ pub mod fs_tests {
             cage.link_syscall(oldpath, newpath),
             -(Errno::EACCES as i32)
         );
-
+        // Cleanup the directory to ensure clean environment
+        assert_eq!(cage.rmdir_syscall("/invalidtestdir"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
