@@ -2241,14 +2241,18 @@ pub mod fs_tests {
         //because the directory cannot be removed if it does not allow
         //write permission
         let path = "/parent_dir_nwchild/dir";
+        // Remove the directory if it already exists
+        let _ = cage.rmdir_syscall("/parent_dir_nwchild/dir");
+        let _ = cage.rmdir_syscall("/parent_dir_nwchild");
         assert_eq!(cage.mkdir_syscall("/parent_dir_nwchild", S_IRWXA), 0);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         assert_eq!(
             cage.chmod_syscall(path, 0o400 | 0o040 | 0o004),
             0
         );
+        // Clean up the directories for clean environment
         assert_eq!(cage.rmdir_syscall(path), 0);
-
+        assert_eq!(cage.rmdir_syscall("/parent_dir_nwchild"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
