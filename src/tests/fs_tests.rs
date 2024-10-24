@@ -4178,6 +4178,8 @@ pub mod fs_tests {
         // We should expect an error (EISDIR) as writing to a directory is not
         // supported.
         let path = "/test_dir";
+        // Remove the directory if it exists to ensure a clean test environment
+        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         // Open the directory with O_RDONLY
         let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
