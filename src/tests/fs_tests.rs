@@ -1667,6 +1667,8 @@ pub mod fs_tests {
 
         let cage = interface::cagetable_getref(1);
         let path = "/testfile";
+        // Unlink the file if it exists
+        let _ = cage.unlink_syscall(path);
         // Create a file
         let fd = cage.open_syscall(path, O_CREAT | O_EXCL | O_WRONLY, S_IRWXA);
         let mut statdata = StatData::default();
