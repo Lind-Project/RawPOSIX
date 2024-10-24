@@ -4403,7 +4403,8 @@ pub mod fs_tests {
         let _thelock = setup::lock_and_init();
 
         let cage = interface::cagetable_getref(1);
-
+        // Remove the file if it exists to ensure a clean test environment
+        let _ = cage.unlink_syscall("/test_file");
         // Test to create a file and seek beyond its size
         let fd = cage.open_syscall("/test_file", O_CREAT | O_RDWR, S_IRWXA);
         assert!(fd >= 0);
@@ -4416,7 +4417,8 @@ pub mod fs_tests {
             cage.lseek_syscall(fd, 10, SEEK_END),
             15 // 5 (file size) + 10 (offset)
         );
-
+        // Clean up the file for clean environment
+        assert_eq!(cage.unlink_syscall("/test_file"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
