@@ -1671,7 +1671,6 @@ pub mod fs_tests {
         let _ = cage.unlink_syscall(path);
         // Create a file
         let fd = cage.open_syscall(path, O_CREAT | O_EXCL | O_WRONLY, S_IRWXA);
-        println!("fd: {}", fd);
         let mut statdata = StatData::default();
         assert_eq!(cage.stat_syscall(path, &mut statdata), 0);
         // Linkcount for the file should be 1 originally
