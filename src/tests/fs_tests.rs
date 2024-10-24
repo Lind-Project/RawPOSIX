@@ -623,9 +623,12 @@ pub mod fs_tests {
         let _thelock = setup::lock_and_init();
 
         let cage = interface::cagetable_getref(1);
-
+        // We are creating /dev/zero manually in this test since we are in the sandbox env. 
+        // In a real system, /dev/zero typically exists as a special device file. 
+        // Make the folder if it doesn't exist
+        let _ = cage.mkdir_syscall("/dev", S_IRWXA);
         //Opening a character device file `/dev/zero`.
-        let fd = cage.open_syscall("/dev/zero", O_RDWR, S_IRWXA);
+        let fd = cage.open_syscall("/dev/zero", O_RDWR | O_CREAT, S_IRWXA);
         //Writing into that file's first 9 bytes.
         assert_eq!(cage.write_syscall(fd, str2cbuf("Test text"), 9), 9);
 
