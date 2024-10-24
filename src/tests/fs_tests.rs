@@ -404,17 +404,21 @@ pub mod fs_tests {
         //making it valid for any mapping.
         let flags: i32 = O_TRUNC | O_CREAT | O_RDWR;
         let filepath = "/mmapTestFile1";
+        // Unlink the file if it already exists
+        let _ = cage.unlink_syscall(filepath);
         let fd = cage.open_syscall(filepath, flags, S_IRWXA);
         //Writing into that file's first 9 bytes.
         assert_eq!(cage.write_syscall(fd, str2cbuf("Test text"), 9), 9);
 
         //Checking if passing 0 as `len` to `mmap_syscall()`
         //correctly results in 'The value of len is 0` error.
-        assert_eq!(
-            cage.mmap_syscall(0 as *mut u8, 0, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0),
-            -(Errno::EINVAL as i32)
-        );
-
+        let mmap_result = cage.mmap_syscall(0 as *mut u8, 0, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        assert_eq!(mmap_result, -1, "Expected mmap to fail with -1 due to zero length");
+        // Fetch the errno and check that it is `EINVAL` (Invalid argument)
+        let errno = get_errno();
+        assert_eq!(errno, libc::EINVAL, "Expected errno to be EINVAL for zero-length mmap");
+        // Clean up and finalize
+        assert_eq!(cage.unlink_syscall(filepath), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
