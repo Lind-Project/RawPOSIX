@@ -548,18 +548,22 @@ pub mod fs_tests {
         //``MAP_SHARED` was requested and PROT_WRITE is
         //set, but fd is not open in read/write (`O_RDWR`)
         //mode` error.
-        assert_eq!(
-            cage.mmap_syscall(
-                0 as *mut u8,
-                5,
-                PROT_READ | PROT_WRITE,
-                MAP_SHARED,
-                testfd,
-                0
-            ),
-            -(Errno::EACCES as i32)
-        );
-
+        let mmap_result = cage.mmap_syscall(
+            0 as *mut u8,
+            5,
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED,
+            testfd,
+            0,
+        );        
+        // Check if mmap_syscall returns -1 (failure)
+        assert_eq!(mmap_result, -1, "Expected mmap to fail due to lack of write permissions");
+        // Fetch and check the errno for debugging
+        let err = get_errno();
+        // Ensure the errno is EACCES (Permission denied)
+        assert_eq!(err, libc::EACCES, "Expected errno to be EACCES for no write permission");
+        // Clean up and finalize
+        assert_eq!(cage.unlink_syscall(filepath), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
