@@ -2552,17 +2552,14 @@ pub mod fs_tests {
         // Create a directory
         assert_eq!(cage.mkdir_syscall("/getdents", S_IRWXA), 0);
 
-        // Open the directory
-        let fd = cage.open_syscall("/getdents", O_RDWR, S_IRWXA);
-
-        // Attempt to call `getdents_syscall` with an invalid file descriptor
+        // Attempt to call `getdents_syscall` with an invalid file descriptor (-1)
         let result = cage.getdents_syscall(-1, baseptr, bufsize as u32);
 
         // Assert that the return value is EBADF (errno for "Bad file descriptor")
         assert_eq!(result, -(Errno::EBADF as i32));
 
-        // Close the directory
-        assert_eq!(cage.close_syscall(fd), 0);
+        // No need to close an invalid file descriptor, so we skip the close call here.
+        // assert_eq!(cage.close_syscall(fd), 0);
         // Clean up environment by removing the directory
         assert_eq!(cage.rmdir_syscall("/getdents"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
