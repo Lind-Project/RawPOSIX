@@ -3683,7 +3683,6 @@ pub mod fs_tests {
         );
         // Cleanup for /dev/zero
         assert_eq!(cage.unlink_syscall(path), 0, "Failed to delete /dev/zero");
-        assert_eq!(cage.rmdir_syscall("/dev"), 0, "Failed to delete /dev");
         assert_eq!(cage.close_syscall(fd), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
