@@ -3858,6 +3858,8 @@ pub mod fs_tests {
 
         // Test for invalid directory should fail
         let path = "/test_dir";
+        // Remove the directory if it exists to ensure a clean test environment
+        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         // Open the directory with O_RDONLY (appropriate for directories)
         let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
@@ -4346,7 +4348,8 @@ pub mod fs_tests {
 
         // Attempt to seek within the directory and check if it succeeds
         assert_eq!(cage.lseek_syscall(fd, 1, SEEK_SET), 1);
-
+        // Clean up the directory for clean environment
+        assert_eq!(cage.rmdir_syscall(path), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
