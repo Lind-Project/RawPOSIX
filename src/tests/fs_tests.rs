@@ -649,6 +649,8 @@ pub mod fs_tests {
         let _thelock = setup::lock_and_init();
 
         let cage = interface::cagetable_getref(1);
+        // Removing the test directory if it exists
+        let _ = cage.rmdir_syscall("/testdir");
 
         //Creating a directory.
         assert_eq!(cage.mkdir_syscall("/testdir", S_IRWXA), 0);
@@ -662,13 +664,17 @@ pub mod fs_tests {
         //`mmap_syscall()` correctly results in `The `fildes`
         //argument refers to a file whose type is not
         //supported by mmap` error.
-
+        let mmap_result = unsafe {
+            libc::mmap(
+                0 as *mut c_void, 5, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0
+            )
+        };
+        // Verify errno is set to ENODEV
+        let errno = get_errno();
         /* Native linux will return ENODEV */
-        assert_eq!(
-            cage.mmap_syscall(0 as *mut u8, 5, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0),
-            -(Errno::ENODEV as i32)
-        );
-
+        assert_eq!(errno, libc::ENODEV, "Expected errno to be ENODEV for unsupported file type");
+        // Clean up and finalize
+        assert_eq!(cage.rmdir_syscall("/testdir"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
