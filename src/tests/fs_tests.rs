@@ -2341,6 +2341,8 @@ pub mod fs_tests {
         let _thelock = setup::lock_and_init();
 
         let cage = interface::cagetable_getref(1);
+        // Remove the file if it already exists
+        let _ = cage.unlink_syscall("/fooComplex");
         let fd = cage.open_syscall("/fooComplex", O_CREAT | O_EXCL | O_WRONLY, S_IRWXA);
 
         assert_eq!(cage.write_syscall(fd, str2cbuf("hi"), 2), 2);
@@ -2359,7 +2361,9 @@ pub mod fs_tests {
         //check that they are the same and that the link count is 0
         assert!(statdata == statdata2);
         assert_eq!(statdata.st_nlink, 2);
-
+        // Clean up the file for a clean environment
+        assert_eq!(cage.unlink_syscall("/fooComplex"), 0);
+        assert_eq!(cage.unlink_syscall("/barComplex"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
