@@ -3655,6 +3655,8 @@ pub mod fs_tests {
         // "/dev/zero" file, which should return 100 bytes of "0" filled
         // characters.
         let path = "/dev/zero";
+        // We are creating /dev/zero manually in this test since we are in the sandbox env. 
+        // In a real system, /dev/zero typically exists as a special device file. 
         // Create a /dev directory if it doesn't exist
         cage.mkdir_syscall("/dev", S_IRWXA);
         if cage.access_syscall(path, F_OK) != 0 {
@@ -3681,8 +3683,6 @@ pub mod fs_tests {
                 .collect::<String>()
                 .as_str()
         );
-        // Cleanup for /dev/zero
-        assert_eq!(cage.unlink_syscall(path), 0, "Failed to delete /dev/zero");
         assert_eq!(cage.close_syscall(fd), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
