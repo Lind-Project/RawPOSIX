@@ -3550,6 +3550,8 @@ pub mod fs_tests {
         // We should expect an error (EISDIR) as reading from a directory is not
         // supported.
         let path = "/test_dir";
+        // Clear the directory if it exists
+        let _ = cage.rmdir_syscall(path);
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         let fd = cage.open_syscall(path, O_RDONLY, S_IRWXA);
 
