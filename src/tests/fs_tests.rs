@@ -3256,7 +3256,9 @@ pub mod fs_tests {
         let _thelock = setup::lock_and_init();
 
         let cage = interface::cagetable_getref(1);
-
+        // Delete the files if it exists
+        let _ = cage.unlink_syscall("/symlinkFile");
+        let _ = cage.unlink_syscall("/originalFile");
         // Create a file which will be referred to as originalFile
         let fd = cage.open_syscall("/originalFile", O_CREAT | O_EXCL | O_WRONLY, S_IRWXA);
         assert_eq!(cage.write_syscall(fd, str2cbuf("hi"), 2), 2);
@@ -3271,6 +3273,10 @@ pub mod fs_tests {
             cage.mkdir_syscall("/symlinkFile", S_IRWXA),
             -(Errno::EEXIST as i32)
         );
+
+        // Clean up and finalize
+        assert_eq!(cage.unlink_syscall("/symlinkFile"), 0);
+        assert_eq!(cage.unlink_syscall("/originalFile"), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
