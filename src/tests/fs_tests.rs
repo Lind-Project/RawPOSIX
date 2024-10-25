@@ -3309,18 +3309,17 @@ pub mod fs_tests {
         let path = "/dir/file";
         // Check for error when neither file nor parent exists and O_CREAT flag is not
         // present
-        assert_eq!(
-            cage.open_syscall(path, F_GETFD, S_IRWXA),
-            -(Errno::ENOENT as i32)
-        );
+        cage.open_syscall(path, F_GETFD, S_IRWXA);
+        let err = get_errno();
+        assert_eq!(err, libc::ENOENT, "Expected ENOENT, got {}", err);
 
-        // Check for error when neither file nor parent exists and O_CREAT flag is
-        // present
-        assert_eq!(
-            cage.open_syscall(path, O_CREAT, S_IRWXA),
-            -(Errno::ENOENT as i32)
-        );
-
+        // Check for error when neither file nor parent exists and O_CREAT flag is present
+        cage.open_syscall(path, O_CREAT, S_IRWXA);
+        let err2 = get_errno();
+        assert_eq!(err2, libc::ENOENT, "Expected ENOENT, got {}", err2);
+        // Clean up and finalize
+        let _ = cage.unlink_syscall(path);
+        let _ = cage.rmdir_syscall("/dir");
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
