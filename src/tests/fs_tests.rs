@@ -4279,7 +4279,11 @@ pub mod fs_tests {
         // file. In this case, we are trying to write 100 bytes to the
         // "/dev/null" file, which should succeed without doing anything.
         let path = "/dev/null";
-        let fd = cage.open_syscall(path, O_RDWR, S_IRWXA);
+        // We are creating /dev/null manually in this test since we are in the sandbox env. 
+        // In a real system, /dev/null typically exists as a special device file. 
+        // Make the folder if it doesn't exist
+        let _ = cage.mkdir_syscall("/dev", S_IRWXA);
+        let fd = cage.open_syscall(path, O_RDWR | O_CREAT, S_IRWXA);
 
         // Verify if the returned count of bytes is 100.
         let write_data = "0".repeat(100);
