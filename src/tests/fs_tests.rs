@@ -3185,13 +3185,17 @@ pub mod fs_tests {
         let _thelock = setup::lock_and_init();
 
         let cage = interface::cagetable_getref(1);
+        let subdir_path = "/parentdir/dir";
         let path = "/parentdir";
         let invalid_mode = 0o77777; // Invalid mode bits
     
+        // Remove the directory if it exists
+        let _ = cage.rmdir_syscall(subdir_path);
+        let _ = cage.rmdir_syscall(path);
+
         // Create the parent directory
         assert_eq!(cage.mkdir_syscall(path, S_IRWXA), 0);
         // Now try to create a subdirectory under the parent directory
-        let subdir_path = "/parentdir/dir";
         let c_subdir_path = std::ffi::CString::new(subdir_path).unwrap();
         let result = unsafe { libc::mkdir(c_subdir_path.as_ptr(), invalid_mode) };
         println!("mkdir returned for subdir: {}", result);
@@ -3694,6 +3698,10 @@ pub mod fs_tests {
         // "/dev/zero" file, which should return 100 bytes of "0" filled
         // characters.
         let path = "/dev/zero";
+        // We are creating /dev/zero manually in this test since we are in the sandbox env. 
+        // In a real system, /dev/zero typically exists as a special device file. 
+        // Create a /dev directory if it doesn't exist
+        cage.mkdir_syscall("/dev", S_IRWXA);
         if cage.access_syscall(path, F_OK) != 0 {
             let fd = cage.open_syscall(path, O_CREAT | O_TRUNC | O_RDWR, S_IRWXA);
             // Write 100 bytes of 0 to mimic /dev/zero behavior
