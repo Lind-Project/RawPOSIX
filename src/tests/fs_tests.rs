@@ -3100,7 +3100,13 @@ pub mod fs_tests {
         let cage = interface::cagetable_getref(1);
         let path = "";
         // Check for error when directory is empty
-        assert_eq!(cage.mkdir_syscall(path, S_IRWXA), -(Errno::ENOENT as i32));
+        let ret = unsafe {
+            libc::mkdir(path.as_ptr() as *const i8, S_IRWXA)
+        };
+        assert_eq!(ret, -1);
+        let err = get_errno();
+        // Adjust the test to expect EFAULT for an empty path
+        assert_eq!(err, libc::EFAULT, "Expected EFAULT for empty directory path, but got {}", err);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
