@@ -33,12 +33,6 @@ pub fn lind_rustposix_thread_init(cageid: u64, signalflag: u64) {
     }
 }
 
-pub fn lind_write_inner(fd: i32, buf: *const u8, count: usize, cageid: u64) {
-    unsafe {
-        quick_write(fd, buf, count, cageid);
-    }
-}
-
 pub fn lind_fork(parent_cageid: u64, child_cageid: u64) -> i32 {
     unsafe {
         lind_syscall_api(
