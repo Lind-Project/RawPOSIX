@@ -30,7 +30,8 @@ use std::mem;
 
 use crate::fdtables;
 
-static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
+// static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
+static LIND_ROOT: &str = "/home/lind-wasm/lind_fs_root";
 
 const FDKIND_KERNEL: u32 = 0;
 const FDKIND_IMPIPE: u32 = 1;
@@ -43,7 +44,7 @@ impl Cage {
     *   Then return virtual fd
     */
     pub fn open_syscall(&self, path: &str, oflag: i32, mode: u32) -> i32 {
-
+        // println!("open {:?}", path);
         // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
@@ -51,6 +52,7 @@ impl Cage {
         let c_path = CString::new(full_path).unwrap();
 
         let kernel_fd = unsafe { libc::open(c_path.as_ptr(), oflag, mode) };
+        // println!("open kernel_fd: {}", kernel_fd);
 
         
         if kernel_fd < 0 {
@@ -219,17 +221,21 @@ impl Cage {
     *   fstat() will return 0 when success and -1 when fail 
     */
     pub fn fstat_syscall(&self, virtual_fd: i32, rposix_statbuf: &mut StatData) -> i32 {
+        // println!("fstat: fd: {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
+            // println!("translate failed");
             return syscall_error(Errno::EBADF, "fstat", "Bad File Descriptor");
         }
         let vfd = wrappedvfd.unwrap();
 
         // Declare statbuf by ourselves 
         let mut libc_statbuf: stat = unsafe { std::mem::zeroed() };
+        // println!("underfd: {}", vfd.underfd);
         let libcret = unsafe {
         libc::fstat(vfd.underfd as i32, &mut libc_statbuf)
         };
+        // println!("libc::fstat returns {}", libcret);
 
         if libcret < 0 {
             let errno = get_errno();
@@ -293,6 +299,7 @@ impl Cage {
     *   fstatfs() will return 0 when success and -1 when fail 
     */
     pub fn fstatfs_syscall(&self, virtual_fd: i32, rposix_databuf: &mut FSData) -> i32 {
+        println!("fstatfs_syscall fd: {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "fstatfs", "Bad File Descriptor");
@@ -608,6 +615,7 @@ impl Cage {
     *   close() will return 0 when sucess, -1 when fail 
     */
     pub fn close_syscall(&self, virtual_fd: i32) -> i32 {
+        // println!("close: {}", virtual_fd);
         match fdtables::close_virtualfd(self.cageid, virtual_fd as u64) {
             Ok(()) => {
                 return 0;
@@ -674,7 +682,7 @@ impl Cage {
                     return syscall_error(Errno::EBADF, "fcntl", "Bad File Descriptor");
                 }
                 let vfd = wrappedvfd.unwrap();
-                if cmd == libc::F_DUPFD {
+                if cmd == libc::F_DUPFD || cmd == libc::F_DUPFD_CLOEXEC {
                     match arg {
                         n if n < 0 => return syscall_error(Errno::EINVAL, "fcntl", "op is F_DUPFD and arg is negative or is greater than the maximum allowable value"),
                         0..=1024 => return self.dup2_syscall(virtual_fd, arg),
@@ -1045,7 +1053,7 @@ impl Cage {
             return syscall_error(Errno::EBADF, "getdents", "Bad File Descriptor");
         }
         let vfd = wrappedvfd.unwrap();
-        let ret = unsafe { libc::syscall(libc::SYS_getdents as c_long, vfd.underfd as i32, buf as *mut c_void, nbytes) as i32 };
+        let ret = unsafe { libc::syscall(libc::SYS_getdents64 as c_long, vfd.underfd as i32, buf as *mut c_void, nbytes) as i32 };
         if ret < 0 {
             let errno = get_errno();
             return handle_errno(errno, "getdents");
@@ -1906,8 +1914,8 @@ impl Cage {
     }
 }
 
-pub fn kernel_close(_fdentry: fdtables::FDTableEntry, kernelfd: u64) {
+pub fn kernel_close(fdentry: fdtables::FDTableEntry, _count: u64) {
     let _ret = unsafe {
-        libc::close(kernelfd as i32)
+        libc::close(fdentry.underfd as i32)
     };
 }

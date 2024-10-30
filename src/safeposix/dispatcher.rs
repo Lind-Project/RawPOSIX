@@ -228,6 +228,22 @@ pub extern "C" fn lind_syscall_api(
     arg5: u64,
     arg6: u64,
 ) -> i32 {
+    if call_number as i32 != WRITE_SYSCALL {
+        match call_name {
+            0 => {
+                println!("\x1b[90mcage {} calls UNNAMED ({})\x1b[0m", cageid, call_number);
+            },
+            _ => {
+                println!("\x1b[90mcage {} calls {} ({})\x1b[0m", cageid, u64_to_str(start_address + call_name).unwrap(), call_number);
+            }
+        }
+        // println!("FDTABLE: ");
+        // for entry in fdtables::FDTABLE.iter() {
+        //     let (key, value) = entry.pair();
+        //     println!("Key: {}, Value: {:?}", key, value);
+        // }
+    }
+
     let call_number = call_number as i32;
 
     let ret = match call_number {
@@ -1479,6 +1495,26 @@ pub extern "C" fn lind_syscall_api(
 
         _ => -1, // Return -1 for unknown syscalls
     };
+
+    if call_number as i32 != WRITE_SYSCALL {
+        match call_name {
+            0 => {
+                if ret < 0 {
+                    println!("\x1b[31mcage {} calls UNNAMED ({}) returns {}\x1b[0m", cageid, call_number, ret);
+                } else {
+                    println!("\x1b[90mcage {} calls UNNAMED ({}) returns {}\x1b[0m", cageid, call_number, ret);
+                }
+            },
+            _ => {
+                if ret < 0 {
+                    println!("\x1b[31mcage {} calls {} ({}) returns {}\x1b[0m", cageid, u64_to_str(start_address + call_name).unwrap(), call_number, ret);
+                } else {
+                    println!("\x1b[90mcage {} calls {} ({}) returns {}\x1b[0m", cageid, u64_to_str(start_address + call_name).unwrap(), call_number, ret);
+                }
+            }
+        }
+    }
+
     ret
 }
 

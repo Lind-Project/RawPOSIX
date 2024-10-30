@@ -143,18 +143,18 @@ impl Cage {
         let newsigset = interface::RustHashMap::new();
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
             // we don't add these for the test suite
-            let mainsigsetatomic = self
-                .sigset
-                .get(
-                    &self
-                        .main_threadid
-                        .load(interface::RustAtomicOrdering::Relaxed),
-                )
-                .unwrap();
-            let mainsigset = interface::RustAtomicU64::new(
-                mainsigsetatomic.load(interface::RustAtomicOrdering::Relaxed),
-            );
-            newsigset.insert(0, mainsigset);
+            // let mainsigsetatomic = self
+            //     .sigset
+            //     .get(
+            //         &self
+            //             .main_threadid
+            //             .load(interface::RustAtomicOrdering::Relaxed),
+            //     )
+            //     .unwrap();
+            // let mainsigset = interface::RustAtomicU64::new(
+            //     mainsigsetatomic.load(interface::RustAtomicOrdering::Relaxed),
+            // );
+            // newsigset.insert(0, mainsigset);
         }
 
         /*
@@ -237,18 +237,18 @@ impl Cage {
         let newsigset = interface::RustHashMap::new();
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
             // we don't add these for the test suite
-            let mainsigsetatomic = self
-                .sigset
-                .get(
-                    &self
-                        .main_threadid
-                        .load(interface::RustAtomicOrdering::Relaxed),
-                )
-                .unwrap();
-            let mainsigset = interface::RustAtomicU64::new(
-                mainsigsetatomic.load(interface::RustAtomicOrdering::Relaxed),
-            );
-            newsigset.insert(0, mainsigset);
+            // let mainsigsetatomic = self
+            //     .sigset
+            //     .get(
+            //         &self
+            //             .main_threadid
+            //             .load(interface::RustAtomicOrdering::Relaxed),
+            //     )
+            //     .unwrap();
+            // let mainsigset = interface::RustAtomicU64::new(
+            //     mainsigsetatomic.load(interface::RustAtomicOrdering::Relaxed),
+            // );
+            // newsigset.insert(0, mainsigset);
         }
 
         let newcage = Cage {
@@ -294,9 +294,9 @@ impl Cage {
         // Trigger SIGCHLD
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
             // dont trigger SIGCHLD for test suite
-            if self.cageid != self.parent {
-                interface::lind_kill_from_id(self.parent, libc::SIGCHLD);
-            }
+            // if self.cageid != self.parent {
+            //     interface::lind_kill_from_id(self.parent, libc::SIGCHLD);
+            // }
         }
 
         //fdtable will be dropped at end of dispatcher scope because of Arc
@@ -338,11 +338,11 @@ impl Cage {
         DEFAULT_UID as i32 //Lind is only run as one user so a default value is returned
     }
     pub fn geteuid_syscall(&self) -> i32 {
-        if self.geteuid.load(interface::RustAtomicOrdering::Relaxed) == -1 {
-            self.geteuid
-                .store(DEFAULT_UID as i32, interface::RustAtomicOrdering::Relaxed);
-            return -1;
-        }
+        // if self.geteuid.load(interface::RustAtomicOrdering::Relaxed) == -1 {
+        //     self.geteuid
+        //         .store(DEFAULT_UID as i32, interface::RustAtomicOrdering::Relaxed);
+        //     return -1;
+        // }
         DEFAULT_UID as i32 //Lind is only run as one user so a default value is returned
     }
 
