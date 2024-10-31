@@ -2,6 +2,8 @@
 use crate::interface;
 use crate::interface::errnos::{syscall_error, Errno};
 
+use std::ffi::CStr;
+use std::str::Utf8Error;
 use std::io::{Read, Write};
 use std::io;
 use std::ptr::null;
