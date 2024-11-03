@@ -4729,8 +4729,11 @@ pub mod fs_tests {
 
         let cage = interface::cagetable_getref(1);
 
+        // Ideally, we should have a character device file in the system
+        // and use that instead of creating a new file. But this is
+        // an sandboxed environment, so we need to create a file.
         // Open a character device file.
-        let fd = cage.open_syscall("/dev/zero", O_RDWR, S_IRWXA);
+        let fd = cage.open_syscall("/dev/zero", O_RDWR | O_CREAT, S_IRWXA);
         assert!(fd >= 0);
 
         // Close the character device file descriptor, which should succeed.
@@ -4739,7 +4742,8 @@ pub mod fs_tests {
         // Attempt to close the file descriptor again to ensure it's already closed.
         // Expect an error for "Invalid File Descriptor".
         assert_eq!(cage.close_syscall(fd), -(Errno::EBADF as i32));
-
+        // Remove the file to clean up the environment
+        let _ = cage.unlink_syscall("/dev/zero");
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
     }
