@@ -307,7 +307,6 @@ pub mod fs_tests {
         assert_eq!(cage.stat_syscall(filepath, &mut statdata), 0);
         assert_eq!(statdata.st_mode, S_IRWXA | S_IFREG as u32);
         // Clean up files and directories
-        let _ = cage.unlink_syscall("../testFolder/chmodTestFile");
         let _ = cage.unlink_syscall(filepath);
         let _ = cage.unlink_syscall("chmodTestFile1");
         let _ = cage.rmdir_syscall(newdir);
