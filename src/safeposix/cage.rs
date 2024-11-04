@@ -8,15 +8,13 @@ pub use crate::interface::types::{
 };
 
 use super::filesystem::normpath;
-// use super::net::SocketHandle;
 pub use super::syscalls::fs_constants::*;
 pub use super::syscalls::net_constants::*;
 pub use super::syscalls::sys_constants::*;
-pub use super::syscalls::vmmap::*;
+pub use super::vmmap::*;
+pub use super::vmmap_constants::*;
 
 pub use crate::interface::CAGE_TABLE;
-
-// pub type FdTable = Vec<interface::RustRfc<interface::RustLock<Option<FileDescriptor>>>>;
 
 #[derive(Debug)]
 pub struct Cage {
@@ -69,50 +67,3 @@ impl Cage {
     }
 
 }
-
-// pub fn init_fdtable() -> FdTable {
-//     let mut fdtable = Vec::new();
-//     // load lower handle stubs
-//     let stdin = interface::RustRfc::new(interface::RustLock::new(Some(FileDescriptor::Stream(
-//         StreamDesc {
-//             position: 0,
-//             stream: 0,
-//             flags: O_RDONLY,
-//             advlock: interface::RustRfc::new(interface::AdvisoryLock::new()),
-//         },
-//     ))));
-//     let stdout = interface::RustRfc::new(interface::RustLock::new(Some(FileDescriptor::Stream(
-//         StreamDesc {
-//             position: 0,
-//             stream: 1,
-//             flags: O_WRONLY,
-//             advlock: interface::RustRfc::new(interface::AdvisoryLock::new()),
-//         },
-//     ))));
-//     let stderr = interface::RustRfc::new(interface::RustLock::new(Some(FileDescriptor::Stream(
-//         StreamDesc {
-//             position: 0,
-//             stream: 2,
-//             flags: O_WRONLY,
-//             advlock: interface::RustRfc::new(interface::AdvisoryLock::new()),
-//         },
-//     ))));
-//     fdtable.push(stdin);
-//     fdtable.push(stdout);
-//     fdtable.push(stderr);
-
-//     for _fd in 3..MAXFD as usize {
-//         fdtable.push(interface::RustRfc::new(interface::RustLock::new(None)));
-//     }
-//     fdtable
-// }
-
-// pub fn create_unix_sockpipes() -> (
-//     interface::RustRfc<interface::EmulatedPipe>,
-//     interface::RustRfc<interface::EmulatedPipe>,
-// ) {
-//     let pipe1 = interface::RustRfc::new(interface::new_pipe(UDSOCK_CAPACITY));
-//     let pipe2 = interface::RustRfc::new(interface::new_pipe(UDSOCK_CAPACITY));
-
-//     (pipe1, pipe2)
-// }

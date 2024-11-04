@@ -81,6 +81,8 @@ impl VmmapEntry {
       // number if only its files backed and returns flags of fd
 }
 
+// VmmapOps trait provides an interface that can be shared by different virtual memory management implementations, 
+// allowing different Vmmap versions to share the same interface.
 #[allow(dead_code)]
 pub trait VmmapOps {
     fn update(
