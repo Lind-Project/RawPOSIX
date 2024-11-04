@@ -199,7 +199,7 @@ pub extern "C" fn rustposix_thread_init(cageid: u64, signalflag: u64) {
 }
 
 #[no_mangle]
-pub extern "C" fn lind_syscall_api(
+pub fn lind_syscall_api(
     cageid: u64,
     call_number: u32,
     call_name: u64,
@@ -1466,7 +1466,7 @@ pub extern "C" fn lind_syscall_api(
 }
 
 #[no_mangle]
-pub extern "C" fn lindcancelinit(cageid: u64) {
+pub fn lindcancelinit(cageid: u64) {
     let cage = interface::cagetable_getref(cageid);
     cage.cancelstatus
         .store(true, interface::RustAtomicOrdering::Relaxed);
@@ -1474,7 +1474,7 @@ pub extern "C" fn lindcancelinit(cageid: u64) {
 }
 
 #[no_mangle]
-pub extern "C" fn lindsetthreadkill(cageid: u64, pthreadid: u64, kill: bool) {
+pub fn lindsetthreadkill(cageid: u64, pthreadid: u64, kill: bool) {
     let cage = interface::cagetable_getref(cageid);
     cage.thread_table.insert(pthreadid, kill);
     if cage
@@ -1490,18 +1490,18 @@ pub extern "C" fn lindsetthreadkill(cageid: u64, pthreadid: u64, kill: bool) {
 }
 
 #[no_mangle]
-pub extern "C" fn lindcheckthread(cageid: u64, pthreadid: u64) -> bool {
+pub fn lindcheckthread(cageid: u64, pthreadid: u64) -> bool {
     interface::check_thread(cageid, pthreadid)
 }
 
 #[no_mangle]
-pub extern "C" fn lindthreadremove(cageid: u64, pthreadid: u64) {
+pub fn lindthreadremove(cageid: u64, pthreadid: u64) {
     let cage = interface::cagetable_getref(cageid);
     cage.thread_table.remove(&pthreadid);
 }
 
 #[no_mangle]
-pub extern "C" fn lindgetsighandler(cageid: u64, signo: i32) -> u32 {
+pub fn lindgetsighandler(cageid: u64, signo: i32) -> u32 {
     let cage = interface::cagetable_getref(cageid);
     let pthreadid = interface::get_pthreadid();
     let sigset = cage.sigset.get(&pthreadid).unwrap(); // these lock sigset dashmaps for concurrency
@@ -1526,7 +1526,7 @@ pub extern "C" fn lindgetsighandler(cageid: u64, signo: i32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn lindrustinit(verbosity: isize) {
+pub fn lindrustinit(verbosity: isize) {
     let _ = interface::VERBOSE.set(verbosity); //assigned to suppress unused result warning
     interface::cagetable_init();
 
@@ -1606,6 +1606,6 @@ pub extern "C" fn lindrustinit(verbosity: isize) {
 }
 
 #[no_mangle]
-pub extern "C" fn lindrustfinalize() {
+pub fn lindrustfinalize() {
     interface::cagetable_clear();
 }
