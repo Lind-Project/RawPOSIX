@@ -242,6 +242,12 @@ pub mod fs_tests {
         let filepath = "/chmodTestFile1";
 
         let mut statdata = StatData::default();
+        let newdir = "../testFolder";
+
+        // Remove the file and directory if it exists
+        let _ = cage.unlink_syscall("../testFolder/chmodTestFile");
+        let _ = cage.unlink_syscall(filepath);
+        let _ = cage.rmdir_syscall(newdir);
 
         //checking if the file was successfully created with the specified initial
         // flags set all mode bits to 0 to change them later
@@ -286,7 +292,6 @@ pub mod fs_tests {
 
         //checking if `chmod_syscall()` works with relative path that include parent
         // directory reference
-        let newdir = "../testFolder";
         assert_eq!(cage.mkdir_syscall(newdir, S_IRWXA), 0);
         let filepath = "../testFolder/chmodTestFile";
 
@@ -301,7 +306,10 @@ pub mod fs_tests {
         assert_eq!(cage.chmod_syscall(filepath, S_IRWXA), 0);
         assert_eq!(cage.stat_syscall(filepath, &mut statdata), 0);
         assert_eq!(statdata.st_mode, S_IRWXA | S_IFREG as u32);
-
+        // Clean up files and directories
+        let _ = cage.unlink_syscall(filepath);
+        let _ = cage.unlink_syscall("chmodTestFile1");
+        let _ = cage.rmdir_syscall(newdir);
         assert_eq!(cage.close_syscall(fd), 0);
         assert_eq!(cage.exit_syscall(libc::EXIT_SUCCESS), libc::EXIT_SUCCESS);
         lindrustfinalize();
