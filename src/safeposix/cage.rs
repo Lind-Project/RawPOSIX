@@ -2,9 +2,6 @@
 use crate::interface;
 //going to get the datatypes and errnos from the cage file from now on
 pub use crate::interface::errnos::{syscall_error, Errno};
-// pub use crate::interface::types::{
-//     Arg, EpollEvent, FSData, IoctlPtrUnion, PipeArray, PollStruct, Rlimit, ShmidsStruct, StatData,
-// };
 
 pub use crate::interface::types::{
     Arg, EpollEvent, IoctlPtrUnion, PipeArray, PollStruct,
@@ -15,58 +12,9 @@ use super::filesystem::normpath;
 pub use super::syscalls::fs_constants::*;
 pub use super::syscalls::net_constants::*;
 pub use super::syscalls::sys_constants::*;
+pub use super::syscalls::vmmap::*;
 
 pub use crate::interface::CAGE_TABLE;
-
-// #[derive(Debug, Clone)]
-// pub enum FileDescriptor {
-//     File(FileDesc),
-//     Stream(StreamDesc),
-//     Socket(SocketDesc),
-//     Pipe(PipeDesc),
-//     Epoll(EpollDesc),
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct FileDesc {
-//     pub position: usize,
-//     pub inode: usize,
-//     pub flags: i32,
-//     pub advlock: interface::RustRfc<interface::AdvisoryLock>,
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct StreamDesc {
-//     pub position: usize,
-//     pub stream: i32, //0 for stdin, 1 for stdout, 2 for stderr
-//     pub flags: i32,
-//     pub advlock: interface::RustRfc<interface::AdvisoryLock>,
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct SocketDesc {
-//     pub flags: i32,
-//     pub domain: i32,
-//     pub rawfd: i32,
-//     pub handle: interface::RustRfc<interface::RustLock<SocketHandle>>,
-//     pub advlock: interface::RustRfc<interface::AdvisoryLock>,
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct PipeDesc {
-//     pub pipe: interface::RustRfc<interface::EmulatedPipe>,
-//     pub flags: i32,
-//     pub advlock: interface::RustRfc<interface::AdvisoryLock>,
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct EpollDesc {
-//     pub mode: i32,
-//     pub registered_fds: interface::RustHashMap<i32, EpollEvent>,
-//     pub advlock: interface::RustRfc<interface::AdvisoryLock>,
-//     pub errno: i32,
-//     pub flags: i32,
-// }
 
 // pub type FdTable = Vec<interface::RustRfc<interface::RustLock<Option<FileDescriptor>>>>;
 
@@ -75,7 +23,6 @@ pub struct Cage {
     pub cageid: u64,
     pub cwd: interface::RustLock<interface::RustRfc<interface::RustPathBuf>>,
     pub parent: u64,
-    // pub filedescriptortable: FdTable,
     pub cancelstatus: interface::RustAtomicBool,
     pub getgid: interface::RustAtomicI32,
     pub getuid: interface::RustAtomicI32,
@@ -91,41 +38,10 @@ pub struct Cage {
     pub pendingsigset: interface::RustHashMap<u64, interface::RustAtomicU64>,
     pub main_threadid: interface::RustAtomicU64,
     pub interval_timer: interface::IntervalTimer,
+    pub vmmap:  Vmmap,
 }
 
 impl Cage {
-    // pub fn get_next_fd(
-    //     &self,
-    //     startfd: Option<i32>,
-    // ) -> (
-    //     i32,
-    //     Option<interface::RustLockWriteGuard<Option<FileDescriptor>>>,
-    // ) {
-    //     let start = match startfd {
-    //         Some(startfd) => startfd,
-    //         None => STARTINGFD,
-    //     };
-
-    //     // let's get the next available fd number. The standard says we need to return the lowest open fd number.
-    //     for fd in start..MAXFD {
-    //         let fdguard = self.filedescriptortable[fd as usize].try_write();
-    //         if let Some(ref fdopt) = fdguard {
-    //             // we grab the lock here and if there is no occupied cage, we return the fdno and guard while keeping the fd slot locked
-    //             if fdopt.is_none() {
-    //                 return (fd, fdguard);
-    //             }
-    //         }
-    //     }
-    //     return (
-    //         syscall_error(
-    //             Errno::ENFILE,
-    //             "get_next_fd",
-    //             "no available file descriptor number could be found",
-    //         ),
-    //         None,
-    //     );
-    // }
-
     pub fn changedir(&self, newdir: interface::RustPathBuf) {
         let newwd = interface::RustRfc::new(normpath(newdir, self));
         let mut cwdbox = self.cwd.write();
@@ -152,16 +68,6 @@ impl Cage {
         }
     }
 
-    // pub fn get_filedescriptor(
-    //     &self,
-    //     fd: i32,
-    // ) -> Result<interface::RustRfc<interface::RustLock<Option<FileDescriptor>>>, ()> {
-    //     if (fd < 0) || (fd >= MAXFD) {
-    //         Err(())
-    //     } else {
-    //         Ok(self.filedescriptortable[fd as usize].clone())
-    //     }
-    // }
 }
 
 // pub fn init_fdtable() -> FdTable {
