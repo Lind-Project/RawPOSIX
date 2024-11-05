@@ -4,3 +4,5 @@ pub mod filesystem;
 pub mod net;
 pub mod shm;
 pub mod syscalls;
+pub mod vmmap;
+pub mod vmmap_constants;
