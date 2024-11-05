@@ -490,12 +490,6 @@ impl Cage {
     *   bitmask by ourself. We use Vec to express the fd_set of the virtual file descriptor 
     *   in Lind, and expand the conversion function between lind fd_set and kernel fd_set.
     *
-    *   We chose to use bit-set to implement our own fd_set data structure because bit-set 
-    *   provides efficient set operations, allowing us to effectively represent and manipulate 
-    *   file descriptor sets. These operations can maximize the fidelity to the POSIX fd_set 
-    *   characteristics.
-    *   Reference: https://docs.rs/bit-set/latest/bit_set/struct.BitSet.html
-    *
     *   select() will return:
     *       - the total number of bits that are set in readfds, writefds, errorfds
     *       - 0, if the timeout expired before any file descriptors became ready
@@ -532,25 +526,35 @@ impl Cage {
         fdkindset.insert(FDKIND_KERNEL);
 
         let (selectbittables, unparsedtables, mappingtable) = fdtables::prepare_bitmasks_for_select(self.cageid, nfds as u64, orfds.copied(), owfds.copied(), oefds.copied(), &fdkindset).unwrap();
-        // libc select()
-        let (readnfd, mut real_readfds) = selectbittables[0].get(&FDKIND_KERNEL).unwrap();
-        let (writenfd, mut real_writefds) = selectbittables[1].get(&FDKIND_KERNEL).unwrap();
-        let (errornfd, mut real_errorfds) = selectbittables[2].get(&FDKIND_KERNEL).unwrap();
         
-        let mut realnewnfds = readnfd;
-        if realnewnfds < writenfd {
-            realnewnfds = writenfd;
-        } else if realnewnfds < errornfd {
-            realnewnfds = errornfd;
-        }
+        // libc select()
+        // Check: 
+        // 1. If there exists virtual fd_set values 
+        // 2. If there exists kernel fd_set
+        // If yes -- Convert into kernel fd_set structure
+        // If no -- Set it to null
+        let (readnfd, mut real_readfds) = selectbittables
+            .get(0)
+            .and_then(|table| table.get(&FDKIND_KERNEL).cloned())
+            .unwrap_or((0, fdtables::_init_fd_set()));
+        let (writenfd, mut real_writefds) = selectbittables
+            .get(1)
+            .and_then(|table| table.get(&FDKIND_KERNEL).cloned())
+            .unwrap_or((0, fdtables::_init_fd_set()));
+        let (errornfd, mut real_errorfds) = selectbittables
+            .get(2)
+            .and_then(|table| table.get(&FDKIND_KERNEL).cloned())
+            .unwrap_or((0, fdtables::_init_fd_set()));
+        
+        let mut realnewnfds = readnfd.max(writenfd).max(errornfd);
 
         // Ensured that null_mut is used if the Option is None for fd_set parameters.
         let ret = unsafe { 
             libc::select(
-                *realnewnfds as i32, 
-                &mut real_readfds as *mut fd_set, 
-                &mut real_writefds as *mut fd_set,
-                &mut real_errorfds as *mut fd_set,
+                realnewnfds as i32, 
+                &mut real_readfds as *mut _,
+                &mut real_writefds as *mut _,
+                &mut real_errorfds as *mut _,
                 &mut timeout as *mut timeval)
         };
 
@@ -560,14 +564,14 @@ impl Cage {
         }
 
         // impipe/imsock select()
-        let start_time = starttimer();
+        // let start_time = starttimer();
 
-        let end_time = match rposix_timeout {
-            Some(time) => time,
-            None => RustDuration::MAX,
-        };
+        // let end_time = match rposix_timeout {
+        //     Some(time) => time,
+        //     None => RustDuration::MAX,
+        // };
 
-        let mut return_code = 0;
+        // let mut return_code = 0;
         let mut unreal_read = HashSet::new();
         let mut unreal_write = HashSet::new();
 
