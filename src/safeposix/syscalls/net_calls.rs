@@ -504,6 +504,13 @@ impl Cage {
         rposix_timeout: Option<RustDuration>,
     ) -> i32 {
 
+        println!("[Select] nfds: {:?}", nfds);
+        println!("[Select] readfds: {:?}", readfds);
+        println!("[Select] writefds: {:?}", writefds);
+        println!("[Select] errorfds: {:?}", errorfds);
+        println!("[Select] timeout: {:?}", rposix_timeout);
+        io::stdout().flush().unwrap();
+        
         let mut timeout;
         if rposix_timeout.is_none() {
             timeout = libc::timeval { 
@@ -548,6 +555,10 @@ impl Cage {
         
         let mut realnewnfds = readnfd.max(writenfd).max(errornfd);
 
+        println!("[Select] - Before kernel select \n[Select] real_readfds: {:?}", real_readfds);
+        println!("[Select] timeout: {:?}\n[Select] rposix_timeout: {:?}\n[Select] realnewnfds: {:?}", timeout, rposix_timeout, realnewnfds);
+        io::stdout().flush().unwrap();
+
         // Ensured that null_mut is used if the Option is None for fd_set parameters.
         let ret = unsafe { 
             libc::select(
@@ -558,7 +569,23 @@ impl Cage {
                 &mut timeout as *mut timeval)
         };
 
+        println!("[Select] - After kernel select - real_readfds: {:?}", real_readfds);
+        println!("[Select] - After kernel select - realnewnfds: {:?}", realnewnfds);
+        println!("[Select] - After kernel select - Return value: {:?}", ret);
+        io::stdout().flush().unwrap();
+
         if ret < 0 {
+            let err = unsafe {
+                libc::__errno_location()
+            };
+            let err_str = unsafe {
+                libc::strerror(*err)
+            };
+            let err_msg = unsafe {
+                CStr::from_ptr(err_str).to_string_lossy().into_owned()
+            };
+            println!("[Select] Error message: {:?}", err_msg);
+            io::stdout().flush().unwrap();
             let errno = get_errno();
             return handle_errno(errno, "select");
         }
@@ -626,7 +653,7 @@ impl Cage {
         // Revert result
         let (read_flags, read_result) = fdtables::get_one_virtual_bitmask_from_select_result(
             FDKIND_KERNEL, 
-            nfds as u64, 
+            realnewnfds as u64, 
             Some(real_readfds), 
             unreal_read, 
             None, 
@@ -639,7 +666,7 @@ impl Cage {
     
         let (write_flags, write_result) = fdtables::get_one_virtual_bitmask_from_select_result(
             FDKIND_KERNEL, 
-            nfds as u64, 
+            realnewnfds as u64, 
             Some(real_writefds), 
             unreal_write, 
             None, 
@@ -652,7 +679,7 @@ impl Cage {
     
         let (error_flags, error_result) = fdtables::get_one_virtual_bitmask_from_select_result(
             FDKIND_KERNEL, 
-            nfds as u64, 
+            realnewnfds as u64, 
             Some(real_errorfds), 
             HashSet::new(), // Assuming there are no unreal errorsets
             None, 
@@ -663,6 +690,12 @@ impl Cage {
             **errorfds = error_result.unwrap();
         }
     
+        let final_ret = read_flags + write_flags + error_flags;
+        println!("[Select] read_flags: {:?}", read_flags);
+        println!("[Select] write_flags: {:?}", write_flags);
+        println!("[Select] error_flags: {:?}", error_flags);
+        println!("[Select] final return: {:?}", final_ret);
+        io::stdout().flush().unwrap();
         // The total number of descriptors ready
         (read_flags + write_flags + error_flags) as i32
     }
