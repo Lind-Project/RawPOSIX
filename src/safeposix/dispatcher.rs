@@ -118,7 +118,7 @@ const CLONE_SYSCALL: i32 = 171;
 const NANOSLEEP_TIME64_SYSCALL : i32 = 181;
 
 use std::ffi::CString;
-
+use std::ffi::CStr;
 use super::cage::*;
 use super::syscalls::kernel_close;
 
@@ -129,7 +129,8 @@ const FDKIND_IMSOCK: u32 = 2;
 use std::io::{Read, Write};
 use std::io;
 
-use crate::interface::types::SockaddrDummy;
+use crate::interface::types;
+// use crate::interface::types::SockaddrDummy;
 use crate::interface::{SigactionStruct, StatData};
 use crate::{fdtables, interface};
 use crate::interface::errnos::*;
@@ -142,7 +143,6 @@ macro_rules! get_onearg {
         }
     };
 }
-
 //this macro takes in a syscall invocation name (i.e. cage.fork_syscall), and all of the arguments
 //to the syscall. Then it unwraps the arguments, returning the error if any one of them is an error
 //value, and returning the value of the function if not. It does this by using the ? operator in
@@ -198,25 +198,8 @@ pub extern "C" fn rustposix_thread_init(cageid: u64, signalflag: u64) {
     interface::signalflag_set(signalflag);
 }
 
-use std::ffi::CStr;
-use std::str::Utf8Error;
-
-fn u64_to_str(ptr: u64) -> Result<&'static str, Utf8Error> {
-    // Convert the u64 to a pointer to a C string (null-terminated)
-    let c_str = ptr as *const i8;
-
-    // Unsafe block to handle raw pointer and C string conversion
-    unsafe {
-        // Create a CStr from the raw pointer
-        let c_str = CStr::from_ptr(c_str);
-
-        // Convert the CStr to a Rust &str
-        c_str.to_str()
-    }
-}
-
 #[no_mangle]
-pub extern "C" fn lind_syscall_api(
+pub fn lind_syscall_api(
     cageid: u64,
     call_number: u32,
     call_name: u64,
@@ -340,7 +323,7 @@ pub extern "C" fn lind_syscall_api(
         }
 
         ACCESS_SYSCALL => {
-            let path = match u64_to_str(start_address + arg1) {
+            let path = match interface::types::get_cstr(start_address + arg1) {
                 Ok(path_str) => path_str,
                 Err(_) => return -1, // Handle error appropriately, return an error code
             };
@@ -355,7 +338,7 @@ pub extern "C" fn lind_syscall_api(
         }
 
         OPEN_SYSCALL => {
-            let path = match u64_to_str(start_address + arg1) {
+            let path = match interface::types::get_cstr(start_address + arg1) {
                 Ok(path_str) => path_str,
                 Err(_) => return -1, // Handle error appropriately, return an error code
             };
@@ -562,7 +545,7 @@ pub extern "C" fn lind_syscall_api(
         }
 
         CHDIR_SYSCALL => {
-            let path = u64_to_str(start_address + arg1).unwrap();
+            let path = interface::types::get_cstr(start_address + arg1).unwrap();
             
             interface::check_cageid(cageid);
             unsafe {
@@ -1519,7 +1502,7 @@ pub extern "C" fn lind_syscall_api(
 }
 
 #[no_mangle]
-pub extern "C" fn lindcancelinit(cageid: u64) {
+pub fn lindcancelinit(cageid: u64) {
     let cage = interface::cagetable_getref(cageid);
     cage.cancelstatus
         .store(true, interface::RustAtomicOrdering::Relaxed);
@@ -1527,7 +1510,7 @@ pub extern "C" fn lindcancelinit(cageid: u64) {
 }
 
 #[no_mangle]
-pub extern "C" fn lindsetthreadkill(cageid: u64, pthreadid: u64, kill: bool) {
+pub fn lindsetthreadkill(cageid: u64, pthreadid: u64, kill: bool) {
     let cage = interface::cagetable_getref(cageid);
     cage.thread_table.insert(pthreadid, kill);
     if cage
@@ -1543,18 +1526,18 @@ pub extern "C" fn lindsetthreadkill(cageid: u64, pthreadid: u64, kill: bool) {
 }
 
 #[no_mangle]
-pub extern "C" fn lindcheckthread(cageid: u64, pthreadid: u64) -> bool {
+pub fn lindcheckthread(cageid: u64, pthreadid: u64) -> bool {
     interface::check_thread(cageid, pthreadid)
 }
 
 #[no_mangle]
-pub extern "C" fn lindthreadremove(cageid: u64, pthreadid: u64) {
+pub fn lindthreadremove(cageid: u64, pthreadid: u64) {
     let cage = interface::cagetable_getref(cageid);
     cage.thread_table.remove(&pthreadid);
 }
 
 #[no_mangle]
-pub extern "C" fn lindgetsighandler(cageid: u64, signo: i32) -> u32 {
+pub fn lindgetsighandler(cageid: u64, signo: i32) -> u32 {
     let cage = interface::cagetable_getref(cageid);
     let pthreadid = interface::get_pthreadid();
     let sigset = cage.sigset.get(&pthreadid).unwrap(); // these lock sigset dashmaps for concurrency
@@ -1579,7 +1562,7 @@ pub extern "C" fn lindgetsighandler(cageid: u64, signo: i32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn lindrustinit(verbosity: isize) {
+pub fn lindrustinit(verbosity: isize) {
     let _ = interface::VERBOSE.set(verbosity); //assigned to suppress unused result warning
     interface::cagetable_init();
 
@@ -1659,6 +1642,6 @@ pub extern "C" fn lindrustinit(verbosity: isize) {
 }
 
 #[no_mangle]
-pub extern "C" fn lindrustfinalize() {
+pub fn lindrustfinalize() {
     interface::cagetable_clear();
 }

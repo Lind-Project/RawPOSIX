@@ -2,6 +2,8 @@
 use crate::interface;
 use crate::interface::errnos::{syscall_error, Errno};
 
+use std::ffi::CStr;
+use std::str::Utf8Error;
 use std::io::{Read, Write};
 use std::io;
 use std::ptr::null;
@@ -213,11 +215,21 @@ pub struct ClippedDirent {
 
 pub const CLIPPED_DIRENT_SIZE: u32 = size_of::<interface::ClippedDirent>() as u32;
 
-pub fn get_int(argument: u64) -> Result<i32, i32> {
-    let data = argument as i32;
+/*
+This file provides essential functions for handling and validating `u64` inputs, 
+converting them to various system-specific data types needed in system calls. 
+It includes utilities for transforming raw pointers to typed structures, such as integer,
+buffer, and string pointers, as well as complex structures like polling, signal handling, 
+timing, and socket-related types. Each function ensures safe and correct usage by performing 
+null checks, boundary validations, and type casting, returning either a valid reference 
+or an error if data is invalid. This design promotes secure, reliable access to memory and
+ resources in a low-level systems environment.
+*/
+pub fn get_int(generic_argument: u64) -> Result<i32, i32> {
+    let data = generic_argument as i32;
     let type_checker = (!0xffffffff) as u64;
 
-    if (argument & (!type_checker)) == 0 {
+    if (generic_argument & (!type_checker)) == 0 {
         return Ok(data);
     }
     return Err(syscall_error(
@@ -227,11 +239,11 @@ pub fn get_int(argument: u64) -> Result<i32, i32> {
     ));
 }
 
-pub fn get_uint(argument: u64) -> Result<u32, i32> {
-    let data = argument as u32;
+pub fn get_uint(generic_argument: u64) -> Result<u32, i32> {
+    let data = generic_argument as u32;
     let type_checker = (!0xffffffff) as u64;
 
-    if (argument & (!type_checker)) == 0 {
+    if (generic_argument & (!type_checker)) == 0 {
         return Ok(data);
     }
     return Err(syscall_error(
@@ -241,26 +253,26 @@ pub fn get_uint(argument: u64) -> Result<u32, i32> {
     ));
 }
 
-pub fn get_long(argument: u64) -> Result<i64, i32> {
-    return Ok(argument as i64); //this should not return error
+pub fn get_long(generic_argument: u64) -> Result<i64, i32> {
+    return Ok(generic_argument as i64); //this should not return error
 }
 
-pub fn get_ulong(argument: u64) -> Result<u64, i32> {
-    return Ok(argument); //this should not return error
+pub fn get_ulong(generic_argument: u64) -> Result<u64, i32> {
+    return Ok(generic_argument); //this should not return error
 }
 
-pub fn get_isize(argument: u64) -> Result<isize, i32> {
+pub fn get_isize(generic_argument: u64) -> Result<isize, i32> {
     // also should not return error
-    return Ok(argument as isize);
+    return Ok(generic_argument as isize);
 }
 
-pub fn get_usize(argument: u64) -> Result<usize, i32> {
+pub fn get_usize(generic_argument: u64) -> Result<usize, i32> {
     //should not return an error
-    return Ok(argument as usize);
+    return Ok(generic_argument as usize);
 }
 
-pub fn get_cbuf(argument: u64) -> Result<*const u8, i32> {
-    let data = argument as *const u8;
+pub fn get_cbuf(generic_argument: u64) -> Result<*const u8, i32> {
+    let data = generic_argument as *const u8;
     if !data.is_null() {
         return Ok(data);
     }
@@ -271,8 +283,8 @@ pub fn get_cbuf(argument: u64) -> Result<*const u8, i32> {
     ));
 }
 
-pub fn get_mutcbuf(argument: u64) -> Result<*mut u8, i32> {
-    let data = argument as *mut u8;
+pub fn get_mutcbuf(generic_argument: u64) -> Result<*mut u8, i32> {
+    let data = generic_argument as *mut u8;
     if !data.is_null() {
         return Ok(data);
     }
@@ -284,8 +296,8 @@ pub fn get_mutcbuf(argument: u64) -> Result<*mut u8, i32> {
 }
 
 // for the case where the buffer pointer being Null is normal
-pub fn get_mutcbuf_null(argument: u64) -> Result<Option<*mut u8>, i32> {
-    let data = argument as *mut u8;
+pub fn get_mutcbuf_null(generic_argument: u64) -> Result<Option<*mut u8>, i32> {
+    let data = generic_argument as *mut u8;
     if !data.is_null() {
         return Ok(Some(data));
     }
@@ -293,8 +305,8 @@ pub fn get_mutcbuf_null(argument: u64) -> Result<Option<*mut u8>, i32> {
 }
 
 
-pub fn get_fdset(argument: u64) -> Result<Option<&'static mut fd_set>, i32> {
-    let data = argument as *mut libc::fd_set;
+pub fn get_fdset(generic_argument: u64) -> Result<Option<&'static mut fd_set>, i32> {
+    let data = generic_argument as *mut libc::fd_set;
     if !data.is_null() {
         let internal_fds = unsafe { &mut *(data as *mut fd_set) };
         return Ok(Some(internal_fds));
@@ -302,11 +314,28 @@ pub fn get_fdset(argument: u64) -> Result<Option<&'static mut fd_set>, i32> {
     return Ok(None);
 }
 
-pub fn get_cstr<'a>(union_argument: Arg) -> Result<&'a str, i32> {
+// pub fn get_fdset(union_argument: Arg) -> Result<Option<&'static mut interface::FdSet>, i32> {
+//     let data: *mut libc::fd_set = unsafe { union_argument.dispatch_fdset };
+//     if !data.is_null() {
+//         let internal_fds: &mut interface::FdSet = interface::FdSet::new_from_ptr(data);
+//         return Ok(Some(internal_fds));
+//     }
+//     return Ok(None);
+// }
+
+// pub fn get_fdset<'a>(union_argument: Arg) -> Result<*mut BitSet, i32> {
+//     let pointer = unsafe { union_argument.dispatch_fdset };
+//     // if !pointer.is_null() {
+//     //     return Ok(pointer);
+//     // }
+//     return Ok(pointer);
+// }
+
+pub fn get_cstr<'a>(generic_argument: u64) -> Result<&'a str, i32> {
     //first we check that the pointer is not null
     //and then we check so that we can get data from the memory
 
-    let pointer = argument as *const i8;
+    let pointer = generic_argument as *const i8;
     if !pointer.is_null() {
         if let Ok(ret_data) = unsafe { interface::charstar_to_ruststr(pointer) } {
             return Ok(ret_data);
@@ -325,13 +354,13 @@ pub fn get_cstr<'a>(union_argument: Arg) -> Result<&'a str, i32> {
     ));
 }
 
-pub fn get_cstrarr<'a>(argument: u64) -> Result<Vec<&'a str>, i32> {
+pub fn get_cstrarr<'a>(generic_argument: u64) -> Result<Vec<&'a str>, i32> {
     //iterate though the pointers in a function and:
     //  1: check that the pointer is not null
     //  2: push the data from that pointer onto the vector being returned
     //once we encounter a null pointer, we know that we have either hit the end of the array or another null pointer in the memory
 
-    let mut pointer = argument as *const *const i8;
+    let mut pointer = generic_argument as *const *const i8;
     let mut data_vector: Vec<&str> = Vec::new();
 
     if !pointer.is_null() {
@@ -356,8 +385,19 @@ pub fn get_cstrarr<'a>(argument: u64) -> Result<Vec<&'a str>, i32> {
     ));
 }
 
-pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut StatData, i32> {
-    let pointer = unsafe { union_argument.dispatch_statdatastruct };
+// pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut stat, i32> {
+//     let pointer = unsafe { union_argument.dispatch_statdatastruct };
+//     if !pointer.is_null() {
+//         return Ok(unsafe { &mut *pointer });
+//     }
+//     return Err(syscall_error(
+//         Errno::EFAULT,
+//         "dispatcher",
+//         "input data not valid",
+//     ));
+// }
+pub fn get_statdatastruct<'a>(generic_argument: u64) -> Result<&'a mut StatData, i32> {
+    let pointer = generic_argument as *mut StatData;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -368,8 +408,19 @@ pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut StatData, i
     ));
 }
 
-pub fn get_fsdatastruct<'a>(union_argument: Arg) -> Result<&'a mut FSData, i32> {
-    let pointer = unsafe { union_argument.dispatch_fsdatastruct };
+// pub fn get_fsdatastruct<'a>(union_argument: Arg) -> Result<&'a mut statfs, i32> {
+//     let pointer = unsafe { union_argument.dispatch_fsdatastruct };
+//     if !pointer.is_null() {
+//         return Ok(unsafe { &mut *pointer });
+//     }
+//     return Err(syscall_error(
+//         Errno::EFAULT,
+//         "dispatcher",
+//         "input data not valid",
+//     ));
+// }
+pub fn get_fsdatastruct<'a>(generic_argument: u64) -> Result<&'a mut FSData, i32> {
+    let pointer = generic_argument as *mut FSData;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -380,8 +431,8 @@ pub fn get_fsdatastruct<'a>(union_argument: Arg) -> Result<&'a mut FSData, i32> 
     ));
 }
 
-pub fn get_shmidstruct<'a>(argument: u64) -> Result<&'a mut ShmidsStruct, i32> {
-    let pointer = argument as *mut ShmidsStruct;
+pub fn get_shmidstruct<'a>(generic_argument: u64) -> Result<&'a mut ShmidsStruct, i32> {
+    let pointer = generic_argument as *mut ShmidsStruct;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -392,8 +443,8 @@ pub fn get_shmidstruct<'a>(argument: u64) -> Result<&'a mut ShmidsStruct, i32> {
     ));
 }
 
-pub fn get_ioctlptrunion<'a>(argument: u64) -> Result<&'a mut u8, i32> {
-    let pointer = argument as *mut u8;
+pub fn get_ioctlptrunion<'a>(generic_argument: u64) -> Result<&'a mut u8, i32> {
+    let pointer = generic_argument as *mut u8;
     if !pointer.is_null() {
         return Ok(unsafe {
             &mut *pointer
@@ -406,8 +457,69 @@ pub fn get_ioctlptrunion<'a>(argument: u64) -> Result<&'a mut u8, i32> {
     ));
 }
 
-pub fn get_pipearray<'a>(union_argument: Arg) -> Result<&'a mut PipeArray, i32> {
-    let pointer = unsafe { union_argument.dispatch_pipearray };
+// pub fn get_ioctlptrunion(union_argument: Arg) -> Result<IoctlPtrUnion, i32> {
+//     return Ok(unsafe { union_argument.dispatch_ioctlptrunion });
+// }
+
+// pub fn get_ioctl_int<'a>(ptrunion: IoctlPtrUnion) -> Result<i32, i32> {
+//     let pointer = unsafe { ptrunion.int_ptr };
+//     if !pointer.is_null() {
+//         return Ok(unsafe { *pointer });
+//     }
+//     return Err(syscall_error(Errno::EFAULT, "ioctl", "argp is not valid"));
+// }
+
+// pub fn get_ioctl_char<'a>(ptrunion: IoctlPtrUnion) -> Result<u8, i32> {
+//     let pointer = unsafe { ptrunion.c_char_ptr };
+//     if !pointer.is_null() {
+//         return Ok(unsafe { *pointer });
+//     }
+//     return Err(syscall_error(Errno::EFAULT, "ioctl", "argp is not valid"));
+// }
+
+/// Given the vector of tuples produced from getdents_syscall, each of which consists of
+/// a ClippedDirent struct and a u8 vector representing the name, and also given the
+/// pointer to the base of the buffer to which the getdents structs should be copied,
+/// populate said buffer with these getdents structs and the names at the requisite locations
+///
+/// We assume a number of things about the tuples that are input:
+///
+/// 1. The name in the u8 vec is null terminated
+/// 2. After being null terminated it is then padded to the next highest 8 byte boundary
+/// 3. After being padded, the last byte of padding is populated with DT_UNKNOWN (0) for now,
+/// as the d_type field does not have to be fully implemented for getdents to be POSIX compliant
+/// 4. All fields in the clipped dirent,  are correctly filled--i.e. d_off has the correct offset
+/// of the next struct in the buffer and d_reclen has the length of the struct with the padded name
+/// 5. The number of tuples in the vector is such that they all fit in the buffer
+///
+/// There is enough information to produce a tuple vector that can satisfy these assumptions well
+/// in getdents syscall, and thus all the work to satisfy these assumptions should be done there
+// pub fn pack_dirents(dirtuplevec: Vec<(ClippedDirent, Vec<u8>)>, baseptr: *mut u8) {
+//     let mut curptr = baseptr;
+
+//     //for each tuple we write in the ClippedDirent struct, and then the padded name vec
+//     for dirtuple in dirtuplevec {
+//         //get pointer to start of next dirent in the buffer as a ClippedDirent pointer
+//         let curclippedptr = curptr as *mut ClippedDirent;
+//         //turn that pointer into a rust reference
+//         let curwrappedptr = unsafe { &mut *curclippedptr };
+//         //assign to the data that reference points to with the value of the ClippedDirent from the tuple
+//         *curwrappedptr = dirtuple.0;
+
+//         //advance pointer by the size of one ClippedDirent, std::mem::size_of should be added into the interface
+//         curptr = curptr.wrapping_offset(size_of::<ClippedDirent>() as isize);
+
+//         //write, starting from this advanced location, the u8 vec representation of the name
+//         unsafe { curptr.copy_from(dirtuple.1.as_slice().as_ptr(), dirtuple.1.len()) };
+
+//         //advance pointer by the size of name, which we assume to be null terminated and padded correctly
+//         //and thus we are finished with this struct
+//         curptr = curptr.wrapping_offset(dirtuple.1.len() as isize);
+//     }
+// }
+
+pub fn get_pipearray<'a>(generic_argument: u64) -> Result<&'a mut PipeArray, i32> {
+    let pointer = generic_argument as *mut PipeArray;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -418,8 +530,8 @@ pub fn get_pipearray<'a>(union_argument: Arg) -> Result<&'a mut PipeArray, i32> 
     ));
 }
 
-pub fn get_sockpair<'a>(argument: u64) -> Result<&'a mut SockPair, i32> {
-    let pointer = argument as *mut SockPair;
+pub fn get_sockpair<'a>(generic_argument: u64) -> Result<&'a mut SockPair, i32> {
+    let pointer = generic_argument as *mut SockPair;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -430,8 +542,20 @@ pub fn get_sockpair<'a>(argument: u64) -> Result<&'a mut SockPair, i32> {
     ));
 }
 
-pub fn get_constsockaddr<'a>(union_argument: Arg) -> Result<&'a SockaddrDummy, i32> {
-    let pointer = unsafe { union_argument.dispatch_constsockaddrstruct };
+// pub fn get_sockaddr<'a>(union_argument: Arg) -> Result<&'a mut SockaddrDummy, i32> {
+//     let pointer = unsafe { union_argument.dispatch_sockaddrstruct };
+//     if !pointer.is_null() {
+//         return Ok(unsafe { &mut *pointer });
+//     }
+//     return Err(syscall_error(
+//         Errno::EFAULT,
+//         "dispatcher",
+//         "input data not valid",
+//     ));
+// }
+
+pub fn get_constsockaddr<'a>(generic_argument: u64) -> Result<&'a SockaddrDummy, i32> {
+    let pointer = generic_argument as *const SockaddrDummy;
     if !pointer.is_null() {
         return Ok(unsafe { & *pointer });
     }
@@ -442,8 +566,8 @@ pub fn get_constsockaddr<'a>(union_argument: Arg) -> Result<&'a SockaddrDummy, i
     ));
 }
 
-pub fn get_sockaddr(argument: u64, addrlen: u32) -> Result<interface::GenSockaddr, i32> {
-    let pointer = argument as *const SockaddrDummy;
+pub fn get_sockaddr(generic_argument: u64, addrlen: u32) -> Result<interface::GenSockaddr, i32> {
+    let pointer = generic_argument as *const SockaddrDummy;
     if !pointer.is_null() {
         let tmpsock = unsafe { &*pointer };
         match tmpsock.sa_family {
@@ -501,9 +625,9 @@ pub fn get_sockaddr(argument: u64, addrlen: u32) -> Result<interface::GenSockadd
     ));
 }
 
-pub fn set_gensockaddr(argument: u64, argument1: u64) -> Result<interface::GenSockaddr, i32> {
-    let received = argument as *mut SockaddrDummy;
-    let received_addrlen = (argument1 as *mut u32) as u32;
+pub fn set_gensockaddr(generic_argument: u64, generic_argument1: u64) -> Result<interface::GenSockaddr, i32> {
+    let received = generic_argument as *mut SockaddrDummy;
+    let received_addrlen = (generic_argument1 as *mut u32) as u32;
     let tmpsock = unsafe { &*received };
     match tmpsock.sa_family {
         /*AF_UNIX*/
@@ -551,9 +675,9 @@ pub fn set_gensockaddr(argument: u64, argument1: u64) -> Result<interface::GenSo
     }
 }
 
-pub fn copy_out_sockaddr(argument: u64, argument1: u64, gensock: interface::GenSockaddr) {
-    let copyoutaddr = (argument as *mut SockaddrDummy) as *mut u8;
-    let addrlen = argument1 as *mut u32;
+pub fn copy_out_sockaddr(generic_argument: u64, generic_argument1: u64, gensock: interface::GenSockaddr) {
+    let copyoutaddr = (generic_argument as *mut SockaddrDummy) as *mut u8;
+    let addrlen = generic_argument1 as *mut u32;
     assert!(!copyoutaddr.is_null());
     assert!(!addrlen.is_null());
     let initaddrlen = unsafe { *addrlen };
@@ -610,10 +734,10 @@ pub fn copy_out_sockaddr(argument: u64, argument1: u64, gensock: interface::GenS
 }
 
 pub fn get_pollstruct_slice<'a>(
-    argument: u64,
+    generic_argument: u64,
     nfds: usize,
 ) -> Result<&'a mut [PollStruct], i32> {
-    let pollstructptr = argument as *mut PollStruct;
+    let pollstructptr = generic_argument as *mut PollStruct;
     if !pollstructptr.is_null() {
         return Ok(unsafe { std::slice::from_raw_parts_mut(pollstructptr, nfds) });
     }
@@ -625,10 +749,10 @@ pub fn get_pollstruct_slice<'a>(
 }
 
 pub fn get_epollevent_slice<'a>(
-    argument: u64,
+    generic_argument: u64,
     nfds: i32,
 ) -> Result<&'a mut [EpollEvent], i32> {
-    let epolleventptr = argument as *mut EpollEvent;
+    let epolleventptr = generic_argument as *mut EpollEvent;
     if !epolleventptr.is_null() {
         return Ok(unsafe { std::slice::from_raw_parts_mut(epolleventptr, nfds as usize) });
     }
@@ -639,8 +763,8 @@ pub fn get_epollevent_slice<'a>(
     ));
 }
 
-pub fn get_slice_from_string<'a>(argument: u64, len: usize) -> Result<&'a mut [u8], i32> {
-    let bufptr = argument as *mut u8;
+pub fn get_slice_from_string<'a>(generic_argument: u64, len: usize) -> Result<&'a mut [u8], i32> {
+    let bufptr = generic_argument as *mut u8;
     if bufptr.is_null() {
         return Ok(unsafe { std::slice::from_raw_parts_mut(bufptr, len as usize) });
     }
@@ -651,8 +775,8 @@ pub fn get_slice_from_string<'a>(argument: u64, len: usize) -> Result<&'a mut [u
     ));
 }
 
-pub fn get_epollevent<'a>(argument: u64) -> Result<&'a mut EpollEvent, i32> {
-    let epolleventptr = argument as *mut EpollEvent;
+pub fn get_epollevent<'a>(generic_argument: u64) -> Result<&'a mut EpollEvent, i32> {
+    let epolleventptr = generic_argument as *mut EpollEvent;
     if !epolleventptr.is_null() {
         return Ok(unsafe { &mut *epolleventptr });
     }
@@ -663,8 +787,8 @@ pub fn get_epollevent<'a>(argument: u64) -> Result<&'a mut EpollEvent, i32> {
     ));
 }
 
-pub fn get_socklen_t_ptr(argument: u64) -> Result<u32, i32> {
-    let socklenptr = argument as *mut u32;
+pub fn get_socklen_t_ptr(generic_argument: u64) -> Result<u32, i32> {
+    let socklenptr = generic_argument as *mut u32;
     if !socklenptr.is_null() {
         return Ok(unsafe { *socklenptr });
     }
@@ -676,18 +800,18 @@ pub fn get_socklen_t_ptr(argument: u64) -> Result<u32, i32> {
 }
 
 //arg checked for nullity beforehand
-pub fn get_int_from_intptr(argument: u64) -> i32 {
-    return unsafe { *(argument as *mut i32)};
+pub fn get_int_from_intptr(generic_argument: u64) -> i32 {
+    return unsafe { *(generic_argument as *mut i32)};
 }
 
-pub fn copy_out_intptr(argument: u64, intval: i32) {
+pub fn copy_out_intptr(generic_argument: u64, intval: i32) {
     unsafe {
-        *(argument as *mut i32) = intval;
+        *(generic_argument as *mut i32) = intval;
     }
 }
 
-pub fn duration_fromtimeval(argument: u64) -> Result<Option<interface::RustDuration>, i32> {
-    let pointer = argument as *mut timeval;
+pub fn duration_fromtimeval(generic_argument: u64) -> Result<Option<interface::RustDuration>, i32> {
+    let pointer = generic_argument as *mut timeval;
     if !pointer.is_null() {
         let times = unsafe { &mut *pointer };
         return Ok(Some(interface::RustDuration::new(
@@ -699,8 +823,8 @@ pub fn duration_fromtimeval(argument: u64) -> Result<Option<interface::RustDurat
     }
 }
 
-pub fn get_timerval<'a>(argument: u64) -> Result<&'a mut timeval, i32> {
-    let pointer = argument as *mut timeval;
+pub fn get_timerval<'a>(generic_argument: u64) -> Result<&'a mut timeval, i32> {
+    let pointer = generic_argument as *mut timeval;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     } 
@@ -711,8 +835,8 @@ pub fn get_timerval<'a>(argument: u64) -> Result<&'a mut timeval, i32> {
     ));
 }
 
-pub fn get_itimerval<'a>(argument: u64) -> Result<Option<&'a mut ITimerVal>, i32> {
-    let pointer = argument as *mut ITimerVal;
+pub fn get_itimerval<'a>(generic_argument: u64) -> Result<Option<&'a mut ITimerVal>, i32> {
+    let pointer = generic_argument as *mut ITimerVal;
     if !pointer.is_null() {
         Ok(Some(unsafe { &mut *pointer }))
     } else {
@@ -720,8 +844,8 @@ pub fn get_itimerval<'a>(argument: u64) -> Result<Option<&'a mut ITimerVal>, i32
     }
 }
 
-pub fn get_constitimerval<'a>(argument: u64) -> Result<Option<&'a ITimerVal>, i32> {
-    let pointer = argument as *const ITimerVal;
+pub fn get_constitimerval<'a>(generic_argument: u64) -> Result<Option<&'a ITimerVal>, i32> {
+    let pointer = generic_argument as *const ITimerVal;
     if !pointer.is_null() {
         Ok(Some(unsafe { &*pointer }))
     } else {
@@ -729,8 +853,20 @@ pub fn get_constitimerval<'a>(argument: u64) -> Result<Option<&'a ITimerVal>, i3
     }
 }
 
-pub fn duration_fromtimespec(union_argument: Arg) -> Result<interface::RustDuration, i32> {
-    let pointer = unsafe { union_argument.dispatch_structtimespec_lind };
+// pub fn get_constitimerval<'a>(union_argument: Arg) -> Result<&'a itimerval, i32> {
+//     let pointer = unsafe { union_argument.dispatch_conststructitimerval };
+//     if !pointer.is_null() {
+//         return Ok(unsafe { &*pointer });
+//     } 
+//     return Err(syscall_error(
+//         Errno::EFAULT,
+//         "dispatcher",
+//         "input data not valid",
+//     ));
+// }
+
+pub fn duration_fromtimespec(generic_argument: u64) -> Result<interface::RustDuration, i32> {
+    let pointer = generic_argument as *mut TimeSpec;
     if !pointer.is_null() {
         let times = unsafe { &mut *pointer };
         if times.tv_nsec < 0 || times.tv_nsec >= 1000000000 {
@@ -753,8 +889,8 @@ pub fn duration_fromtimespec(union_argument: Arg) -> Result<interface::RustDurat
     }
 }
 
-pub fn get_timespec<'a>(argument: u64) -> Result<&'a timespec, i32> {
-    let pointer = argument as *mut timespec;
+pub fn get_timespec<'a>(generic_argument: u64) -> Result<&'a timespec, i32> {
+    let pointer = generic_argument as *mut timespec;
     if !pointer.is_null() {
         return Ok( unsafe {
             &*pointer
@@ -770,9 +906,9 @@ pub fn get_timespec<'a>(argument: u64) -> Result<&'a timespec, i32> {
 
 
 pub fn get_duration_from_millis(
-    argument: u64,
+    generic_argument: u64,
 ) -> Result<Option<interface::RustDuration>, i32> {
-    let posstimemillis = get_int(argument);
+    let posstimemillis = get_int(generic_argument);
     match posstimemillis {
         Ok(timemillis) => {
             if timemillis >= 0 {
@@ -787,12 +923,12 @@ pub fn get_duration_from_millis(
     }
 }
 
-pub fn arg_nullity(argument: u64) -> bool {
-    (argument as *const u8).is_null()
+pub fn arg_nullity(generic_argument: u64) -> bool {
+    (generic_argument as *const u8).is_null()
 }
 
-pub fn get_sigactionstruct<'a>(argument: u64) -> Result<Option<&'a mut SigactionStruct>, i32> {
-    let pointer = argument as *mut SigactionStruct;
+pub fn get_sigactionstruct<'a>(generic_argument: u64) -> Result<Option<&'a mut SigactionStruct>, i32> {
+    let pointer = generic_argument as *mut SigactionStruct;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &mut *pointer }))
@@ -801,8 +937,8 @@ pub fn get_sigactionstruct<'a>(argument: u64) -> Result<Option<&'a mut Sigaction
     }
 }
 
-pub fn get_constsigactionstruct<'a>(argument: u64) -> Result<Option<&'a SigactionStruct>, i32> {
-    let pointer = argument as *const SigactionStruct;
+pub fn get_constsigactionstruct<'a>(generic_argument: u64) -> Result<Option<&'a SigactionStruct>, i32> {
+    let pointer = generic_argument as *const SigactionStruct;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &*pointer }))
@@ -811,8 +947,8 @@ pub fn get_constsigactionstruct<'a>(argument: u64) -> Result<Option<&'a Sigactio
     }
 }
 
-pub fn get_sigsett<'a>(argument: u64) -> Result<Option<&'a mut SigsetType>, i32> {
-    let pointer = argument as *mut u64;
+pub fn get_sigsett<'a>(generic_argument: u64) -> Result<Option<&'a mut SigsetType>, i32> {
+    let pointer = generic_argument as *mut u64;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &mut *pointer }))
@@ -821,8 +957,8 @@ pub fn get_sigsett<'a>(argument: u64) -> Result<Option<&'a mut SigsetType>, i32>
     }
 }
 
-pub fn get_constsigsett<'a>(argument: u64) -> Result<Option<&'a SigsetType>, i32> {
-    let pointer = argument as *const SigsetType;
+pub fn get_constsigsett<'a>(generic_argument: u64) -> Result<Option<&'a SigsetType>, i32> {
+    let pointer = generic_argument as *const SigsetType;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &*pointer }))
@@ -831,8 +967,8 @@ pub fn get_constsigsett<'a>(argument: u64) -> Result<Option<&'a SigsetType>, i32
     }
 }
 
-pub fn get_iovecstruct(argument: u64) -> Result<*const interface::IovecStruct, i32> {
-    let data = argument as *const interface::IovecStruct;
+pub fn get_iovecstruct(generic_argument: u64) -> Result<*const interface::IovecStruct, i32> {
+    let data = generic_argument as *const interface::IovecStruct;
     if !data.is_null() {
         return Ok(data);
     }
