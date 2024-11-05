@@ -1879,6 +1879,110 @@ impl Cage {
         }
         return 0;
     }
+
+    /*
+    * Fork System Call
+    * 
+    * Purpose:
+    * Creates a new child process by duplicating the calling (parent) process.
+    * The child process is an exact copy of the parent process except for:
+    * - Different process ID (PID)
+    * - Own copy of memory space
+    * - Own copy of file descriptors
+    *
+    * Returns:
+    * - To parent: Child's PID on success, -1 on failure
+    * - To child: 0 on success
+    * - Error codes on failure with appropriate errno set
+    */
+    pub fn fork_syscall(&mut self) -> i32 {
+        // Create a new cage (container) for the child process
+        let child_cageid = match interface::cagetable_register() {
+            Ok(id) => id,
+            Err(_) => return syscall_error(Errno::EAGAIN, "fork", "Unable to create new cage"),
+        };
+
+        // Create a deep copy of parent's virtual memory map for child
+        // This ensures child has its own isolated memory space
+        let child_vmmap = {
+            let vmmap_clone = self.vmmap.clone();
+            // Initialize child-specific memory settings
+            vmmap_clone.initialize_for_child(child_cageid);
+            vmmap_clone
+        };
+
+        // Perform the actual fork system call
+        match unsafe { libc::fork() } {
+            -1 => {
+                // Fork failed - clean up and return error
+                interface::cagetable_unregister(child_cageid);
+                let errno = get_errno();
+                handle_errno(errno, "fork")
+            }
+            0 => {
+                // We are in the child process
+                // Set child's cage ID and memory map
+                self.cageid = child_cageid;
+                self.vmmap = child_vmmap;
+                
+                // Set up child's memory management
+                self.vmmap = child_vmmap;
+
+                // Copy parent's file descriptors to child
+                // Skip descriptors marked with close-on-exec (cloexec) flag
+                let fd_table = fdtables::get_fd_table(self.cageid);
+                for (vfd, fd_entry) in fd_table.iter() {
+                    if let Some(entry) = fd_entry {
+                        if !entry.cloexec {
+                            // Create new file descriptor for child
+                            let child_kernel_fd = unsafe { 
+                                libc::dup(entry.underfd as i32)
+                            };
+                            
+                            if child_kernel_fd < 0 {
+                                return syscall_error(Errno::EMFILE, "fork", "Failed to duplicate file descriptor");
+                            }
+
+                            // Map the new file descriptor in child's table
+                            if let Err(_) = fdtables::get_specific_virtual_fd(
+                                self.cageid,
+                                *vfd,
+                                entry.fdkind,
+                                child_kernel_fd as u64,
+                                entry.cloexec,
+                                entry.perfdinfo
+                            ) {
+                                unsafe { libc::close(child_kernel_fd) };
+                                return syscall_error(Errno::EMFILE, "fork", "Failed to create virtual fd");
+                            }
+                        }
+                    }
+                }
+
+                // Copy parent's working directory to child
+                let cwd = self.cwd.read().clone();
+                *self.cwd.write() = cwd;
+
+                // Copy shared memory mappings
+                // These are memory regions shared between processes
+                let mut child_rev_shm = self.rev_shm.lock();
+                let parent_rev_shm = self.rev_shm.lock();
+                *child_rev_shm = parent_rev_shm.clone();
+
+                // Copy semaphore table
+                // Semaphores are used for process synchronization
+                for (handle, sem) in self.sem_table.iter() {
+                    self.sem_table.insert(*handle, sem.clone());
+                }
+
+                0 // Child process returns 0
+            }
+            pid => {
+                // We are in the parent process
+                pid // Parent returns child's PID
+            }
+        }
+    }
 }
 
 pub fn kernel_close(_fdentry: fdtables::FDTableEntry, kernelfd: u64) {
