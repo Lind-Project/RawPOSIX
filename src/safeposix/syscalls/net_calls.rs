@@ -482,13 +482,12 @@ impl Cage {
     }
     
     /* 
-    *   fd_set is used in the Linux select system call to specify the file descriptor 
-    *   to be monitored. fd_set is actually a bit array, each bit of which represents 
-    *   a file descriptor. fd_set is a specific data type used by the kernel, so we need 
-    *   to make sure the final variable we pass to the kernel is in the format that the 
-    *   kernel expects. That's why we choose to use FD_SET function instead of doing 
-    *   bitmask by ourself. We use Vec to express the fd_set of the virtual file descriptor 
-    *   in Lind, and expand the conversion function between lind fd_set and kernel fd_set.
+    *   The design logic for select is first to categorize the file descriptors (fds) received from the user based on FDKIND. 
+    *   Specifically, kernel fds are passed to the underlying libc select, while impipe and imsock fds would be processed by the 
+    *   in-memory system. Afterward, the results are combined and consolidated accordingly.
+    *
+    *   (Note: Currently, only kernel fds are supported. The implementation for in-memory pipes is commented out and will require 
+    *   further integration and testing once in-memory pipe support is added.)
     *
     *   select() will return:
     *       - the total number of bits that are set in readfds, writefds, errorfds
@@ -503,14 +502,6 @@ impl Cage {
         mut errorfds: Option<&mut fd_set>,
         rposix_timeout: Option<RustDuration>,
     ) -> i32 {
-
-        println!("[Select] nfds: {:?}", nfds);
-        println!("[Select] readfds: {:?}", readfds);
-        println!("[Select] writefds: {:?}", writefds);
-        println!("[Select] errorfds: {:?}", errorfds);
-        println!("[Select] timeout: {:?}", rposix_timeout);
-        io::stdout().flush().unwrap();
-        
         let mut timeout;
         if rposix_timeout.is_none() {
             timeout = libc::timeval { 
@@ -555,9 +546,6 @@ impl Cage {
         
         let mut realnewnfds = readnfd.max(writenfd).max(errornfd);
 
-        println!("[Select] - Before kernel select \n[Select] real_readfds: {:?}", real_readfds);
-        println!("[Select] timeout: {:?}\n[Select] rposix_timeout: {:?}\n[Select] realnewnfds: {:?}", timeout, rposix_timeout, realnewnfds);
-        io::stdout().flush().unwrap();
 
         // Ensured that null_mut is used if the Option is None for fd_set parameters.
         let ret = unsafe { 
@@ -569,23 +557,7 @@ impl Cage {
                 &mut timeout as *mut timeval)
         };
 
-        println!("[Select] - After kernel select - real_readfds: {:?}", real_readfds);
-        println!("[Select] - After kernel select - realnewnfds: {:?}", realnewnfds);
-        println!("[Select] - After kernel select - Return value: {:?}", ret);
-        io::stdout().flush().unwrap();
-
         if ret < 0 {
-            let err = unsafe {
-                libc::__errno_location()
-            };
-            let err_str = unsafe {
-                libc::strerror(*err)
-            };
-            let err_msg = unsafe {
-                CStr::from_ptr(err_str).to_string_lossy().into_owned()
-            };
-            println!("[Select] Error message: {:?}", err_msg);
-            io::stdout().flush().unwrap();
             let errno = get_errno();
             return handle_errno(errno, "select");
         }
@@ -689,13 +661,7 @@ impl Cage {
         if let Some(errorfds) = errorfds.as_mut() {
             **errorfds = error_result.unwrap();
         }
-    
-        let final_ret = read_flags + write_flags + error_flags;
-        println!("[Select] read_flags: {:?}", read_flags);
-        println!("[Select] write_flags: {:?}", write_flags);
-        println!("[Select] error_flags: {:?}", error_flags);
-        println!("[Select] final return: {:?}", final_ret);
-        io::stdout().flush().unwrap();
+
         // The total number of descriptors ready
         (read_flags + write_flags + error_flags) as i32
     }
