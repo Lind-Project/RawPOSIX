@@ -130,7 +130,6 @@ use std::io::{Read, Write};
 use std::io;
 
 use crate::interface::types;
-// use crate::interface::types::SockaddrDummy;
 use crate::interface::{SigactionStruct, StatData};
 use crate::{fdtables, interface};
 use crate::interface::errnos::*;
@@ -157,27 +156,6 @@ macro_rules! check_and_dispatch {
 
 // the following "quick" functions are implemented for research purposes
 // to increase I/O performance by bypassing the dispatcher and type checker
-#[no_mangle]
-pub extern "C" fn quick_write(fd: i32, buf: *const u8, count: usize, cageid: u64) -> i32 {
-    interface::check_cageid(cageid);
-    unsafe {
-        CAGE_TABLE[cageid as usize]
-            .as_ref()
-            .unwrap()
-            .write_syscall(fd, buf, count)
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn quick_read(fd: i32, buf: *mut u8, size: usize, cageid: u64) -> i32 {
-    interface::check_cageid(cageid);
-    unsafe {
-        CAGE_TABLE[cageid as usize]
-            .as_ref()
-            .unwrap()
-            .read_syscall(fd, buf, size)
-    }
-}
 
 #[no_mangle]
 pub extern "C" fn rustposix_thread_init(cageid: u64, signalflag: u64) {
