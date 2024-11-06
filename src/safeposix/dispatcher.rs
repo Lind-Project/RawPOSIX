@@ -119,6 +119,8 @@ const NANOSLEEP_TIME64_SYSCALL : i32 = 181;
 
 use std::ffi::CString;
 use std::ffi::CStr;
+use libc::MAP_FIXED;
+
 use super::cage::*;
 use super::syscalls::kernel_close;
 
@@ -217,7 +219,7 @@ pub fn lind_syscall_api(
                 println!("\x1b[90mcage {} calls UNNAMED ({})\x1b[0m", cageid, call_number);
             },
             _ => {
-                println!("\x1b[90mcage {} calls {} ({})\x1b[0m", cageid, u64_to_str(start_address + call_name).unwrap(), call_number);
+                println!("\x1b[90mcage {} calls {} ({})\x1b[0m", cageid, interface::get_cstr(start_address + call_name).unwrap(), call_number);
             }
         }
         // println!("FDTABLE: ");
@@ -269,19 +271,50 @@ pub fn lind_syscall_api(
         }
 
         MMAP_SYSCALL => {
-            let addr = (start_address + arg1) as *mut u8;
+            let addr = start_address as *mut u8;
             let len = arg2 as usize;
             let prot = arg3 as i32;
             let flags = arg4 as i32;
             let fildes = arg5 as i32;
             let off = arg6 as i64;
             interface::check_cageid(cageid);
-            unsafe {
+
+            let cage = unsafe {
                 CAGE_TABLE[cageid as usize]
                     .as_ref()
                     .unwrap()
-                    .mmap_syscall(addr, len, prot, flags, fildes, off)
+            };
+
+            let mut vmmap = cage.vmmap.write();
+            let result = {
+                if len & (4095) > 0 {
+                    vmmap.find_map_space((len as u32 >> 12) + 1, 1)
+                }
+                else {
+                    vmmap.find_map_space(len as u32 >> 12, 1)
+                }
+            };
+
+            if result.is_none() {
+                return syscall_error(Errno::ENOMEM, "mmap", "no memory");
             }
+
+            let space = result.unwrap();
+            let addr_st = start_address + ((space.start() << 12) as u64);
+            let addr_ed = start_address + ((space.end() << 12) as u64);
+            let real_len = (addr_ed - addr_st) as usize;
+
+            // println!("space: {:?}, real_st: {}, real_len: {}", space, addr_st, real_len);
+
+            drop(vmmap);
+
+            let result = cage.mmap_syscall(addr_st as *mut u8, real_len, prot, flags | MAP_FIXED, fildes, off);
+            if result >= 0 {
+                let mut vmmap = cage.vmmap.write();
+                vmmap.add_entry_with_override(space.start(), space.end() - space.start(), prot, 0, flags, MemoryBackingType::Anonymous, off, 0, cageid);
+            }
+
+            result
         }
 
         PREAD_SYSCALL => {
@@ -1490,15 +1523,37 @@ pub fn lind_syscall_api(
             },
             _ => {
                 if ret < 0 {
-                    println!("\x1b[31mcage {} calls {} ({}) returns {}\x1b[0m", cageid, u64_to_str(start_address + call_name).unwrap(), call_number, ret);
+                    println!("\x1b[31mcage {} calls {} ({}) returns {}\x1b[0m", cageid, interface::get_cstr(start_address + call_name).unwrap(), call_number, ret);
                 } else {
-                    println!("\x1b[90mcage {} calls {} ({}) returns {}\x1b[0m", cageid, u64_to_str(start_address + call_name).unwrap(), call_number, ret);
+                    println!("\x1b[90mcage {} calls {} ({}) returns {}\x1b[0m", cageid, interface::get_cstr(start_address + call_name).unwrap(), call_number, ret);
                 }
             }
         }
     }
 
     ret
+}
+
+pub fn lind_cage_vmmap_init(cageid: u64) {
+    let cage = interface::cagetable_getref(cageid);
+    let mut vmmap = cage.vmmap.write();
+    vmmap.add_entry(VmmapEntry::new(0, 0x30, PROT_WRITE | PROT_READ, 0 /* not sure about this field */, (MAP_PRIVATE | MAP_ANONYMOUS) as i32, false, 0, 0, cageid, MemoryBackingType::Anonymous));
+    vmmap.add_entry(VmmapEntry::new(1 << 18, 1, PROT_NONE, 0 /* not sure about this field */, (MAP_PRIVATE | MAP_ANONYMOUS) as i32, false, 0, 0, cageid, MemoryBackingType::Anonymous));
+}
+
+pub fn set_base_address(cageid: u64, base_address: i64) {
+    let cage = interface::cagetable_getref(cageid);
+    let mut vmmap = cage.vmmap.write();
+    vmmap.set_base_address(base_address);
+}
+
+pub fn fork_vmmap_helper(parent_cageid: u64, child_cageid: u64) {
+    let parent_cage = interface::cagetable_getref(parent_cageid);
+    let child_cage = interface::cagetable_getref(child_cageid);
+    let parent_vmmap = parent_cage.vmmap.read();
+    let child_vmmap = child_cage.vmmap.read();
+
+    interface::fork_vmmap(&parent_vmmap, &child_vmmap);
 }
 
 #[no_mangle]
@@ -1588,6 +1643,7 @@ pub fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(0),
+        vmmap: interface::RustLock::new(Vmmap::new())
     };
 
     interface::cagetable_insert(0, utilcage);
@@ -1628,6 +1684,7 @@ pub fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(1),
+        vmmap: interface::RustLock::new(Vmmap::new())
     };
     interface::cagetable_insert(1, initcage);
     fdtables::init_empty_cage(1);

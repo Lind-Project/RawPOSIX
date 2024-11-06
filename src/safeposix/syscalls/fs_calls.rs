@@ -779,9 +779,12 @@ impl Cage {
         prot: i32,
         flags: i32,
         virtual_fd: i32,
-        off: i64,
+        off: i64
     ) -> i32 {
+        // println!("mmap syscall: addr={:?}, len={}, prot={}, flags={}, fd={}, off={}, base_addr={}", addr, len, prot, flags, virtual_fd, off, base_address);
+
         if virtual_fd != -1 {
+            // TO-DO: handle vmmap result here
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
                 Ok(kernel_fd) => {
                     let ret = unsafe {
@@ -803,7 +806,10 @@ impl Cage {
             if ret == -1 {
                 return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
             }
-            return (ret & 0xffffffff) as i32;
+
+            let vmmap = self.vmmap.read();
+            vmmap.native_addr_to_virtual_addr(ret)
+            // return (ret & 0xffffffff) as i32;
         }
     }
 
@@ -1189,9 +1195,9 @@ impl Cage {
         let prot: i32;
         if let Some(mut segment) = metadata.shmtable.get_mut(&shmid) {
             if 0 != (shmflg & fs_constants::SHM_RDONLY) {
-                prot = PROT_READ;
+                prot = libc::PROT_READ;
             } else {
-                prot = PROT_READ | PROT_WRITE;
+                prot = libc::PROT_READ | libc::PROT_WRITE;
             }
             let mut rev_shm = self.rev_shm.lock();
             rev_shm.push((shmaddr as u32, shmid));

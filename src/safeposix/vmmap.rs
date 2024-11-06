@@ -165,6 +165,7 @@ pub struct Vmmap {
     pub entries: NoditMap<u32, Interval<u32>, VmmapEntry>, // Keyed by `page_num`
     pub cached_entry: Option<VmmapEntry>,                  // TODO: is this still needed?
                                                            // Use Option for safety
+    pub base_address: Option<i64>,                         // wasm base address. None means uninitialized yet
 }
 
 #[allow(dead_code)]
@@ -173,6 +174,7 @@ impl Vmmap {
         Vmmap {
             entries: NoditMap::new(),
             cached_entry: None,
+            base_address: None
         }
     }
 
@@ -182,6 +184,18 @@ impl Vmmap {
 
     fn trunc_page_num_down_to_map_multiple(&self, npages: u32, pages_per_map: u32) -> u32 {
         npages & !(pages_per_map - 1)
+    }
+
+    pub fn set_base_address(&mut self, base_address: i64) {
+        self.base_address = Some(base_address);
+    }
+
+    pub fn virtual_addr_to_native_addr(&self, address: i32) -> i64 {
+        address as i64 + self.base_address.unwrap()
+    }
+
+    pub fn native_addr_to_virtual_addr(&self, address: i64) -> i32 {
+        (address as i64 - self.base_address.unwrap()) as i32
     }
 
     fn visit() {}
@@ -520,14 +534,19 @@ impl VmmapOps for Vmmap {
     }
 
     fn find_map_space(&self, num_pages: u32, pages_per_map: u32) -> Option<Interval<u32>> {
+        // println!("find_map_space: num_pages={}, pages_per_map={}", num_pages, pages_per_map);
         let start = self.first_entry();
         let end = self.last_entry();
 
         if start == None || end == None {
+        // if false {
             return None;
         } else {
             let start_unwrapped = start.unwrap().0.start();
             let end_unwrapped = end.unwrap().0.end();
+
+            // let start_unwrapped = 0;
+            // let end_unwrapped = u32::max_value() >> 12;
 
             let rounded_num_pages =
                 self.round_page_num_up_to_map_multiple(num_pages, pages_per_map);
@@ -536,14 +555,17 @@ impl VmmapOps for Vmmap {
                 .entries
                 .gaps_trimmed(ie(start_unwrapped, end_unwrapped))
             {
+                // println!("find: {:?}", gap);
                 let aligned_start_page =
                     self.trunc_page_num_down_to_map_multiple(gap.start(), pages_per_map);
                 let aligned_end_page =
                     self.round_page_num_up_to_map_multiple(gap.end(), pages_per_map);
+                // println!("aligned_start_page: {}, aligned_end_page: {}, rounded_num_pages: {}", aligned_start_page, aligned_end_page, rounded_num_pages);
+                // println!("aligned_start_page: {}, aligned_start_page + rounded_num_pages: {}, ie: {:?}", aligned_start_page, aligned_start_page + rounded_num_pages, ie(aligned_start_page, aligned_start_page + rounded_num_pages + 1));
 
                 let gap_size = aligned_end_page - aligned_start_page;
                 if gap_size >= rounded_num_pages {
-                    return Some(ie(aligned_end_page - rounded_num_pages, aligned_end_page));
+                    return Some(ie(aligned_start_page, aligned_start_page + rounded_num_pages + 1));
                 }
             }
         }
