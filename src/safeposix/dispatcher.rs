@@ -176,6 +176,10 @@ pub extern "C" fn rustposix_thread_init(cageid: u64, signalflag: u64) {
     interface::signalflag_set(signalflag);
 }
 
+/// The `lind_syscall_api` function acts as the central handler for executing various system calls 
+/// within the Lind virtualized environment, where isolated processes (called "cages") operate 
+/// independently. This function enables a wide range of system calls (e.g., file I/O, memory 
+/// management) by interpreting the `call_number` parameter, which specifies the system call type.
 #[no_mangle]
 pub fn lind_syscall_api(
     cageid: u64,
