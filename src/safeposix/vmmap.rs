@@ -190,11 +190,11 @@ impl Vmmap {
         self.base_address = Some(base_address);
     }
 
-    pub fn virtual_addr_to_native_addr(&self, address: i32) -> i64 {
+    pub fn user_to_sys(&self, address: i32) -> i64 {
         address as i64 + self.base_address.unwrap()
     }
 
-    pub fn native_addr_to_virtual_addr(&self, address: i64) -> i32 {
+    pub fn sys_to_user(&self, address: i64) -> i32 {
         (address as i64 - self.base_address.unwrap()) as i32
     }
 

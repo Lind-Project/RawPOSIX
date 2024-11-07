@@ -781,7 +781,7 @@ impl Cage {
         virtual_fd: i32,
         off: i64
     ) -> i32 {
-        // println!("mmap syscall: addr={:?}, len={}, prot={}, flags={}, fd={}, off={}, base_addr={}", addr, len, prot, flags, virtual_fd, off, base_address);
+        println!("mmap syscall: addr={:?}, len={}, prot={}, flags={}, fd={}, off={}", addr, len, prot, flags, virtual_fd, off);
 
         if virtual_fd != -1 {
             // TO-DO: handle vmmap result here
@@ -808,7 +808,7 @@ impl Cage {
             }
 
             let vmmap = self.vmmap.read();
-            vmmap.native_addr_to_virtual_addr(ret)
+            vmmap.sys_to_user(ret)
             // return (ret & 0xffffffff) as i32;
         }
     }

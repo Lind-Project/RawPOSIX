@@ -119,7 +119,6 @@ const NANOSLEEP_TIME64_SYSCALL : i32 = 181;
 
 use std::ffi::CString;
 use std::ffi::CStr;
-use libc::MAP_FIXED;
 
 use super::cage::*;
 use super::syscalls::kernel_close;
@@ -131,6 +130,7 @@ const FDKIND_IMSOCK: u32 = 2;
 use std::io::{Read, Write};
 use std::io;
 
+use crate::interface::round_up_page;
 use crate::interface::types;
 // use crate::interface::types::SockaddrDummy;
 use crate::interface::{SigactionStruct, StatData};
@@ -262,20 +262,41 @@ pub fn lind_syscall_api(
             let addr = (start_address + arg1) as *mut u8;
             let len = arg2 as usize;
             interface::check_cageid(cageid);
-            unsafe {
+
+            let cage = unsafe {
                 CAGE_TABLE[cageid as usize]
                     .as_ref()
                     .unwrap()
-                    .munmap_syscall(addr, len)
+            };
+
+            // check if the provided address is multiple of pages
+            let rounded_addr = round_up_page(addr as u64) as usize;
+            if rounded_addr != addr as usize {
+                return syscall_error(Errno::EINVAL, "mmap", "address it not aligned");
             }
+
+            let vmmap = cage.vmmap.read();
+            let sysaddr = vmmap.user_to_sys(rounded_addr as i32);
+            drop(vmmap);
+
+            let result = cage.mmap_syscall(sysaddr as *mut u8, len, PROT_NONE, (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED) as i32, -1, 0);
+            if result as usize != rounded_addr {
+                panic!("MAP_FIXED not fixed");
+            }
+
+            let mut vmmap = cage.vmmap.write();
+
+            vmmap.remove_entry(rounded_addr as u32 >> PAGESHIFT, len as u32 >> PAGESHIFT);
+
+            0
         }
 
         MMAP_SYSCALL => {
-            let addr = start_address as *mut u8;
+            let addr = arg1 as *mut u8;
             let len = arg2 as usize;
-            let prot = arg3 as i32;
-            let flags = arg4 as i32;
-            let fildes = arg5 as i32;
+            let mut prot = arg3 as i32;
+            let mut flags = arg4 as i32;
+            let mut fildes = arg5 as i32;
             let off = arg6 as i64;
             interface::check_cageid(cageid);
 
@@ -285,36 +306,99 @@ pub fn lind_syscall_api(
                     .unwrap()
             };
 
-            let mut vmmap = cage.vmmap.write();
-            let result = {
-                if len & (4095) > 0 {
-                    vmmap.find_map_space((len as u32 >> 12) + 1, 1)
-                }
-                else {
-                    vmmap.find_map_space(len as u32 >> 12, 1)
-                }
-            };
-
-            if result.is_none() {
-                return syscall_error(Errno::ENOMEM, "mmap", "no memory");
+            // only these four flags are allowed
+            let allowed_flags = (MAP_FIXED as i32 | MAP_SHARED as i32 | MAP_PRIVATE as i32 | MAP_ANONYMOUS as i32);
+            if flags & !allowed_flags > 0 {
+                // truncate flag to remove flags that are not allowed
+                flags &= allowed_flags;
             }
 
-            let space = result.unwrap();
-            let addr_st = start_address + ((space.start() << 12) as u64);
-            let addr_ed = start_address + ((space.end() << 12) as u64);
-            let real_len = (addr_ed - addr_st) as usize;
+            if prot & PROT_EXEC > 0 {
+                return syscall_error(Errno::EINVAL, "mmap", "PROT_EXEC is not allowed");
+            }
 
-            // println!("space: {:?}, real_st: {}, real_len: {}", space, addr_st, real_len);
+            // check if the provided address is multiple of pages
+            let rounded_addr = round_up_page(addr as u64);
+            if rounded_addr != addr as u64 {
+                return syscall_error(Errno::EINVAL, "mmap", "address it not aligned");
+            }
+
+            // offset should be non-negative and multiple of pages
+            if off < 0 {
+                return syscall_error(Errno::EINVAL, "mmap", "offset cannot be negative");
+            }
+            let rounded_off = round_up_page(off as u64);
+            if rounded_off != off as u64 {
+                return syscall_error(Errno::EINVAL, "mmap", "offset it not aligned");
+            }
+
+            // round up length to be multiple of pages
+            let rounded_length = round_up_page(len as u64);
+
+            let mut useraddr = addr as i32;
+            // if MAP_FIXED is not set, then we need to find an address for the user
+            if flags & MAP_FIXED as i32 == 0 {
+                let mut vmmap = cage.vmmap.write();
+                let result;
+                
+                // pick an address of appropriate size, anywhere
+                if addr as usize == 0 {
+                    result = vmmap.find_map_space(rounded_length as u32 >> PAGESHIFT, 1);
+                } else {
+                    // use address user provided as hint to find address
+                    result = vmmap.find_map_space_with_hint(rounded_length as u32 >> PAGESHIFT, 1, addr as u32);
+                }
+    
+                // did not find desired memory region
+                if result.is_none() {
+                    return syscall_error(Errno::ENOMEM, "mmap", "no memory");
+                }
+
+                let space = result.unwrap();
+                useraddr = (space.start() << PAGESHIFT) as i32;
+            }
+
+            // TODO: validate useraddr (like checking whether within the program break)
+
+            flags |= MAP_FIXED as i32;
+
+            // either MAP_PRIVATE or MAP_SHARED should be set, but not both
+            if (flags & MAP_PRIVATE as i32 == 0) == (flags & MAP_SHARED as i32 == 0) {
+                return syscall_error(Errno::EINVAL, "mmap", "invalid flags");
+            }
+
+            let vmmap = cage.vmmap.read();
+
+            let sysaddr = vmmap.user_to_sys(useraddr);
 
             drop(vmmap);
 
-            let result = cage.mmap_syscall(addr_st as *mut u8, real_len, prot, flags | MAP_FIXED, fildes, off);
-            if result >= 0 {
-                let mut vmmap = cage.vmmap.write();
-                vmmap.add_entry_with_override(space.start(), space.end() - space.start(), prot, 0, flags, MemoryBackingType::Anonymous, off, 0, cageid);
+            if rounded_length > 0 {
+                if flags & MAP_ANONYMOUS as i32 > 0 {
+                    fildes = -1;
+                }
+
+                let result = cage.mmap_syscall(sysaddr as *mut u8, rounded_length as usize, prot, flags, fildes, off);
+                if result >= 0 {
+                    if result != useraddr {
+                        panic!("MAP_FIXED not fixed");
+                    }
+
+                    let mut vmmap = cage.vmmap.write();
+                    let backing = {
+                        MemoryBackingType::Anonymous
+                        // TODO: should return backing type accordingly
+                        // if flags & MAP_ANONYMOUS > 0 {
+                        //     MemoryBackingType::Anonymous
+                        // } else if flags & MAP_SHARED > 0 {
+
+                        // }
+                    };
+                    vmmap.add_entry_with_override((useraddr >> PAGESHIFT) as u32, (rounded_length >> PAGESHIFT) as u32, prot, 0, flags, backing, off, 0, cageid);
+                }
             }
 
-            result
+            useraddr
         }
 
         PREAD_SYSCALL => {

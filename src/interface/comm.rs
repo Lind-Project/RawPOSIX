@@ -3,7 +3,6 @@
 // //
 
 use crate::interface;
-use crate::safeposix::cage::{Vmmap, MAP_SHARED, PAGESHIFT, PROT_NONE, PROT_READ, PROT_WRITE};
 use std::fs::read_to_string;
 use std::mem::size_of;
 use std::str::from_utf8;
@@ -642,36 +641,4 @@ pub fn kernel_select(
     };
 
     return result;
-}
-
-pub fn fork_vmmap(parent_vmmap: &Vmmap, child_vmmap: &Vmmap) {
-    let parent_base = parent_vmmap.base_address.unwrap();
-    let child_base = child_vmmap.base_address.unwrap();
-
-    for (_interval, entry) in parent_vmmap.entries.iter() {
-        // println!("entry: {:?}", entry);
-        if entry.prot == PROT_NONE { continue; }
-        let addr_st = (entry.page_num << PAGESHIFT) as i32;
-        let addr_len = (entry.npages << PAGESHIFT) as usize;
-        // println!("fork region {} - {}, npages={}", addr_st, addr_st + addr_len as i32, entry.npages);
-
-        let parent_st = parent_vmmap.virtual_addr_to_native_addr(addr_st);
-        let child_st = child_vmmap.virtual_addr_to_native_addr(addr_st);
-        if entry.flags & (MAP_SHARED as i32) > 0 {
-            let result = unsafe { libc::mremap(parent_st as *mut libc::c_void, 0, addr_len, libc::MREMAP_MAYMOVE | libc::MREMAP_FIXED, child_st as *mut libc::c_void) };
-            // println!("mremap result: {:?}", result);
-        } else {
-            // println!("vmmap: parent: {}, child: {}, len: {}", parent_st, child_st, addr_len);
-
-            // temporarily enable write on child's memory region to write parent data
-            unsafe { libc::mprotect(child_st as *mut libc::c_void, addr_len, PROT_READ | PROT_WRITE) };
-
-            // write parent data
-            unsafe { std::ptr::copy_nonoverlapping(parent_st as *const u8, child_st as *mut u8, addr_len) };
-
-            // revert child's memory region prot
-            unsafe { libc::mprotect(child_st as *mut libc::c_void, addr_len, entry.prot) };
-        }
-        // println!("done fork entry");
-    }
 }
