@@ -523,14 +523,22 @@ impl Cage {
         // fdkindset.insert(FDKIND_IMPIPE);
         fdkindset.insert(FDKIND_KERNEL);
 
-        let (selectbittables, unparsedtables, mappingtable) = fdtables::prepare_bitmasks_for_select(self.cageid, nfds as u64, orfds.copied(), owfds.copied(), oefds.copied(), &fdkindset).unwrap();
+        let (selectbittables, unparsedtables, mappingtable) 
+            = fdtables::prepare_bitmasks_for_select(
+                self.cageid, 
+                nfds as u64, 
+                orfds.copied(), 
+                owfds.copied(), 
+                oefds.copied(), 
+                &fdkindset)
+                .unwrap();
         
-        // libc select()
-        // Check: 
-        // 1. If there exists virtual fd_set values 
-        // 2. If there exists kernel fd_set
-        // If yes -- Convert into kernel fd_set structure
-        // If no -- Set it to null
+        // ------ libc select() ------
+        // In select, each fd_set is allowed to contain empty values, as it’s possible for the user to input a mixture of pure 
+        // virtual_fds and those with underlying real file descriptors. This means we need to check each fd_set separately to 
+        // handle both types of descriptors properly. The goal here is to ensure that each fd_set (read, write, error) is correctly 
+        // initialized. To handle cases where selectbittables does not contain an entry at the expected index or where it doesn’t 
+        // include a FDKIND_KERNEL entry, the code assigns a default value with an initialized fd_set and an nfd of 0.
         let (readnfd, mut real_readfds) = selectbittables
             .get(0)
             .and_then(|table| table.get(&FDKIND_KERNEL).cloned())
