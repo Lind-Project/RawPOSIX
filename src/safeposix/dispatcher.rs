@@ -176,10 +176,26 @@ pub extern "C" fn rustposix_thread_init(cageid: u64, signalflag: u64) {
     interface::signalflag_set(signalflag);
 }
 
-/// The `lind_syscall_api` function acts as the central handler for executing various system calls 
-/// within the Lind virtualized environment, where isolated processes (called "cages") operate 
-/// independently. This function enables a wide range of system calls (e.g., file I/O, memory 
-/// management) by interpreting the `call_number` parameter, which specifies the system call type.
+/// The `lind_syscall_api` function acts as the main dispatcher for handling system calls 
+/// within the Lind virtualized environment. It identifies the syscall to execute based on 
+/// `call_number`, and then invokes the appropriate syscall with the given arguments within 
+/// the specified cage (`cageid`).
+/// 
+/// ### Arguments:
+/// `lind_syscall_api()` accepts 10 arguments:
+/// * `cageid` - Identifier for the cage in which the syscall will be executed.
+/// * `call_number` - Unique number for each system call, used to identify which syscall to invoke.
+/// * `call_name` - A legacy argument from the initial 3i proposal, currently unused and subject to 
+///                 change with future 3i integration.
+/// * `start_address` - Base address of WebAssembly linear memory, used for address translation
+///                     between virtual and system memory address.
+/// * `arg1 - arg6` - Syscall-specific arguments. Any unused argument is set to `0xdeadbeefdeadbeef`.
+/// 
+/// ### Returns:
+/// On success, returns the syscall's return value. On failure, returns the negative errno code.
+/// 
+/// ### Panics:
+/// * If the specified `cageid` does not exist, the function will panic.
 #[no_mangle]
 pub fn lind_syscall_api(
     cageid: u64,
