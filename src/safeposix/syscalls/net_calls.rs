@@ -520,7 +520,6 @@ impl Cage {
         let oefds = errorfds.as_mut().map(|fds| &mut **fds);
 
         let mut fdkindset = HashSet::new();
-        // fdkindset.insert(FDKIND_IMPIPE);
         fdkindset.insert(FDKIND_KERNEL);
 
         let (selectbittables, unparsedtables, mappingtable) 
@@ -570,66 +569,9 @@ impl Cage {
             return handle_errno(errno, "select");
         }
 
-        // impipe/imsock select()
-        // let start_time = starttimer();
-
-        // let end_time = match rposix_timeout {
-        //     Some(time) => time,
-        //     None => RustDuration::MAX,
-        // };
-
-        // let mut return_code = 0;
         let mut unreal_read = HashSet::new();
         let mut unreal_write = HashSet::new();
 
-        /* TODO
-            1. Do we need to handle errfds?
-            2. Err returns?
-        */
-        // loop {
-        //     for (fdkind_flag, entry) in unparsedtables[0].iter() {
-        //         if *fdkind_flag == FDKIND_IMPIPE {
-        //             let res = self.select_impipe_read(fdkind_flag, entry, &mut unreal_read, &mut return_code, mappingtable.clone());
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         } else if *fdkind_flag == FDKIND_IMSOCK {
-        //             let res = self.select_imsock_read(fdkind_flag, entry, &mut unreal_read, &mut return_code, mappingtable.clone());
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         }
-        //     }
-
-        //     for (fdkind_flag, entry) in unparsedtables[1].iter() {
-        //         if *fdkind_flag == FDKIND_IMPIPE {
-        //             let res = self.select_impipe_write(fdkind_flag, entry, &mut unreal_write, &mut return_code, mappingtable.clone());
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         } else if *fdkind_flag == FDKIND_IMSOCK {
-        //             let res = self.select_imsock_write(entry);
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         }
-        //     }
-
-        //     // We haven't handle errfds
-
-        //     // we break if there is any file descriptor ready
-        //     // or timeout is reached
-        //     if return_code != 0 || readtimer(start_time) > end_time {
-        //         break;
-        //     } else {
-        //         // otherwise, check for signal and loop again
-        //         if sigcheck() {
-        //             return syscall_error(Errno::EINTR, "select", "interrupted function call");
-        //         }
-        //         // We yield to let other threads continue if we've found no ready descriptors
-        //         lind_yield();
-        //     }
-        // }
         // Revert result
         let (read_flags, read_result) = fdtables::get_one_virtual_bitmask_from_select_result(
             FDKIND_KERNEL, 
@@ -673,119 +615,6 @@ impl Cage {
         // The total number of descriptors ready
         (read_flags + write_flags + error_flags) as i32
     }
-
-    // pub fn select_impipe_read(
-    //     &self, 
-    //     fdkind: &u32,
-    //     entry: &HashSet<FDTableEntry>, 
-    //     unreal_read: &mut HashSet<u64>, 
-    //     return_code: &mut i32,
-    //     mappingtable: HashMap<(u32, u64), u64>,
-    // ) -> i32 {
-    //     for impipe_entry in entry {
-    //         if let IPCTableEntry::Pipe(ref pipe_entry) = *IPC_TABLE.get(&impipe_entry.underfd).unwrap() {
-    //             if impipe_entry.perfdinfo as i32 & O_RDONLY != 0 {
-    //                 if pipe_entry.pipe.check_select_read() {
-    //                     *return_code += 1;
-    //                     match mappingtable.get(&(*fdkind, impipe_entry.underfd)) {
-    //                         Some(&virfd) => unreal_read.insert(virfd),
-    //                         None => return syscall_error(Errno::EBADFD, "select", "impipe")
-    //                     };
-    //                 }
-    //             } 
-    //         }
-    //     }
-    //     return 0;
-    // }
-
-    // pub fn select_imsock_read(
-    //     &self, 
-    //     fdkind: &u32,
-    //     entry: &HashSet<FDTableEntry>, 
-    //     unreal_read: &mut HashSet<u64>, 
-    //     return_code: &mut i32,
-    //     mappingtable: HashMap<(u32, u64), u64>,
-    // ) -> i32 {
-    //     for imsock_entry in entry {
-    //         if let IPCTableEntry::DomainSocket(ref mut sock_entry) = *IPC_TABLE.get_mut(&imsock_entry.underfd).unwrap() {
-    //             match sock_entry.state {
-    //                 ConnState::INPROGRESS => {
-    //                     let remotepathstring = CString::new(sock_entry.remoteaddr.unwrap().path()).unwrap();
-    //                     let dsconnobj = DS_CONNECTION_TABLE.get(&remotepathstring);
-    //                     if dsconnobj.is_none() {
-    //                     sock_entry.state = ConnState::CONNECTED;
-    //                     }
-    //                 },
-    //                 ConnState::LISTEN => {
-    //                     let localpathstring = CString::new(sock_entry.localaddr.unwrap().path()).unwrap();
-    //                     let dsconnobj = DS_CONNECTION_TABLE.get(&localpathstring);
-    //                     if dsconnobj.is_some() {
-    //                         match mappingtable.get(&(*fdkind, imsock_entry.underfd)) {
-    //                             Some(&virfd) => unreal_read.insert(virfd),
-    //                             None => return syscall_error(Errno::EINVAL, "select", "invalid operation")
-    //                         };
-    //                         *return_code += 1;
-    //                     }
-    //                 },
-    //                 ConnState::CONNECTED | ConnState::CONNRDONLY => {
-    //                     let receivepipe = sock_entry.receivepipe.as_ref().unwrap();
-    //                     if receivepipe.check_select_read() {
-    //                         match mappingtable.get(&(*fdkind, imsock_entry.underfd)) {
-    //                             Some(&virfd) => unreal_read.insert(virfd),
-    //                             None => return syscall_error(Errno::EINVAL, "select", "invalid operation")
-    //                         };
-    //                         *return_code += 1;
-    //                     }
-    //                 },
-    //                 _ => {}
-    //             }
-    //         }
-    //     }
-    //     0
-    // }
-
-    // pub fn select_impipe_write(
-    //     &self, 
-    //     fdkind: &u32,
-    //     entry: &HashSet<FDTableEntry>, 
-    //     unreal_write: &mut HashSet<u64>, 
-    //     return_code: &mut i32,
-    //     mappingtable: HashMap<(u32, u64), u64>,
-    // ) -> i32 {
-    //     for impipe_entry in entry {
-    //         if let IPCTableEntry::Pipe(ref pipe_entry) = *IPC_TABLE.get(&impipe_entry.underfd).unwrap() {
-    //             if impipe_entry.perfdinfo as i32 & O_WRONLY != 0 {
-    //                 if pipe_entry.pipe.check_select_write() {
-    //                     *return_code += 1;
-    //                     match mappingtable.get(&(*fdkind, impipe_entry.underfd)) {
-    //                         Some(&virfd) => unreal_write.insert(virfd),
-    //                         None => return syscall_error(Errno::EBADFD, "select", "impipe")
-    //                     };
-    //                 }
-    //             }
-                
-    //         }
-    //     }
-    //     return 0;
-    // }
-
-    // pub fn select_imsock_write(
-    //     &self, 
-    //     entry: &HashSet<FDTableEntry>, 
-    // ) -> i32 {
-    //     for imsock_entry in entry {
-    //         if let IPCTableEntry::DomainSocket(ref mut sock_entry) = *IPC_TABLE.get_mut(&imsock_entry.underfd).unwrap() {
-    //             if sock_entry.state == ConnState::INPROGRESS || sock_entry.state == ConnState::CONNWRONLY { // and writeonly
-    //                 let remotepathstring = CString::new(sock_entry.remoteaddr.unwrap().path()).unwrap();
-    //                 let dsconnobj = DS_CONNECTION_TABLE.get(&remotepathstring);
-    //                 if dsconnobj.is_none() {
-    //                     sock_entry.state = ConnState::CONNECTED;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     return 0;
-    // }
 
     /*  
      *   Get the kernel fd with provided virtual fd first
