@@ -218,40 +218,7 @@ impl Cage {
         0
     }
 
-    /// Cleans up all memory mappings from a process's virtual memory space.
-    /// Used by both exec() and exit() to ensure proper memory cleanup,
-    /// but with different purposes:
-    /// - For exec(): Prepares for new process image by clearing old mappings
-    /// - For exit(): Final cleanup before process termination
-    fn clear_memory_mappings(&self) -> Result<(), Errno> {
-        // Acquire write lock on vmmap, return error if lock is poisoned
-        let mut vmmap = self.vmmap.write().map_err(|_| {
-            syscall_error(Errno::EINVAL, "clear_memory_mappings", "vmmap lock is poisoned")
-        })?;
-
-        // First collect all intervals to avoid modifying while iterating
-        let intervals: Vec<_> = vmmap.double_ended_iter()
-            .map(|(interval, _)| (interval.start(), interval.end() - interval.start()))
-            .collect();
-        
-        // Then remove each interval, tracking any failures
-        for (start, length) in intervals {
-            if let Err(_) = vmmap.remove_entry(start, length) {
-                return syscall_error(
-                    Errno::EINVAL,
-                    "clear_memory_mappings", 
-                    "failed to remove memory mapping"
-                );
-            }
-        }
-
-        Ok(())
-    }
-
     pub fn exec_syscall(&self, child_cageid: u64) -> i32 {
-        // Remove current cage's memory mappings
-        self.clear_memory_mappings();
-
         // Empty fd with flag should_cloexec 
         fdtables::empty_fds_for_exec(self.cageid);
         // Add the new one to fdtable
@@ -311,9 +278,6 @@ impl Cage {
     }
 
     pub fn exit_syscall(&self, status: i32) -> i32 {
-        // Remove current cage's memory mappings
-        self.clear_memory_mappings();
-
         //flush anything left in stdout
         interface::flush_stdout();
         self.unmap_shm_mappings();
