@@ -222,6 +222,24 @@ impl Cage {
     *   exec() will only return if error happens 
     */
     pub fn exec_syscall(&self, child_cageid: u64) -> i32 {
+        // When a process calls exec(), we need to clean up all existing 
+        // memory mappings. We must unmap everything from the parent process 
+        // because the new process image needs to start with a completely clean 
+        // memory space. This ensures no memory state gets inherited from the 
+        // parent process.
+        {
+            let mut vmmap = self.vmmap.write();
+            // First collect all intervals
+            let intervals: Vec<_> = vmmap.double_ended_iter()
+                .map(|(interval, _)| (interval.start(), interval.end() - interval.start()))
+                .collect();
+            
+            // Then remove them
+            for (start, length) in intervals {
+                let _ = vmmap.remove_entry(start, length);
+            }
+        }
+
         // Empty fd with flag should_cloexec 
         fdtables::empty_fds_for_exec(self.cageid);
         // Add the new one to fdtable
