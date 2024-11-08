@@ -218,6 +218,9 @@ impl Cage {
         0
     }
 
+    /*
+    *   exec() will only return if error happens 
+    */
     pub fn exec_syscall(&self, child_cageid: u64) -> i32 {
         // Empty fd with flag should_cloexec 
         fdtables::empty_fds_for_exec(self.cageid);
