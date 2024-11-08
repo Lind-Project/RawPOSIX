@@ -1034,6 +1034,7 @@ pub extern "C" fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(0),
+        vmmap: interface::RustLock::new(Vmmap::new()) // TO-DO: should be fixed later
     };
 
     interface::cagetable_insert(0, utilcage);
@@ -1074,6 +1075,7 @@ pub extern "C" fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(1),
+        vmmap: interface::RustLock::new(Vmmap::new()) // TO-DO: should be fixed later
     };
     interface::cagetable_insert(1, initcage);
     fdtables::init_empty_cage(1);

@@ -36,7 +36,7 @@ pub struct Cage {
     pub pendingsigset: interface::RustHashMap<u64, interface::RustAtomicU64>,
     pub main_threadid: interface::RustAtomicU64,
     pub interval_timer: interface::IntervalTimer,
-    pub vmmap:  Vmmap,
+    pub vmmap: interface::RustLock<Vmmap>,
 }
 
 impl Cage {

@@ -199,6 +199,7 @@ impl Cage {
             pendingsigset: interface::RustHashMap::new(),
             main_threadid: interface::RustAtomicU64::new(0),
             interval_timer: interface::IntervalTimer::new(child_cageid),
+            vmmap: interface::RustLock::new(Vmmap::new()) // TO-DO: should be fixed later
         };
 
         let shmtable = &SHM_METADATA.shmtable;
@@ -271,6 +272,7 @@ impl Cage {
             pendingsigset: interface::RustHashMap::new(),
             main_threadid: interface::RustAtomicU64::new(0),
             interval_timer: self.interval_timer.clone_with_new_cageid(child_cageid),
+            vmmap: interface::RustLock::new(Vmmap::new()) // TO-DO: should be fixed later
         };
         //wasteful clone of fdtable, but mutability constraints exist
 
