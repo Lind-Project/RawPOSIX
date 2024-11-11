@@ -7,7 +7,7 @@ pub use crate::interface::errnos::{syscall_error, Errno};
 // };
 
 pub use crate::interface::types::{
-    Arg, EpollEvent, IoctlPtrUnion, PipeArray, PollStruct,
+    EpollEvent, IoctlPtrUnion, PipeArray, PollStruct,
 };
 
 use super::filesystem::normpath;
