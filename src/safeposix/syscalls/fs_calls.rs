@@ -1906,8 +1906,8 @@ impl Cage {
     }
 }
 
-pub fn kernel_close(_fdentry: fdtables::FDTableEntry, kernelfd: u64) {
+pub fn kernel_close(fdentry: fdtables::FDTableEntry, _count: u64) {
     let _ret = unsafe {
-        libc::close(kernelfd as i32)
+        libc::close(fdentry.underfd as i32)
     };
 }

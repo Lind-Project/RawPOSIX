@@ -269,7 +269,6 @@ pub fn get_mutcbuf_null(generic_argument: u64) -> Result<Option<*mut u8>, i32> {
 pub fn get_fdset(generic_argument: u64) -> Result<Option<&'static mut fd_set>, i32> {
     let data = generic_argument as *mut libc::fd_set;
     if !data.is_null() {
-        // let internal_fds: &mut interface::FdSet = interface::FdSet::new_from_ptr(data);
         let internal_fds = unsafe { &mut *(data as *mut fd_set) };
         return Ok(Some(internal_fds));
     }
@@ -503,7 +502,6 @@ pub fn set_gensockaddr(generic_argument: u64, generic_argument1: u64) -> Result<
                     "input length too small for family of sockaddr",
                 ));
             }
-            // let v4_ptr = pointer as *const interface::SockaddrV4;
             let v4_addr = interface::GenSockaddr::V4(interface::SockaddrV4::default());
             return Ok(v4_addr);
         }
@@ -516,7 +514,6 @@ pub fn set_gensockaddr(generic_argument: u64, generic_argument1: u64) -> Result<
                     "input length too small for family of sockaddr",
                 ));
             }
-
             let v6_addr = interface::GenSockaddr::V6(interface::SockaddrV6::default());
             return Ok(v6_addr);
         }
@@ -539,12 +536,10 @@ pub fn copy_out_sockaddr(generic_argument: u64, generic_argument1: u64, gensock:
             let unixlen = size_of::<interface::SockaddrUnix>() as u32;
 
             let fullcopylen = interface::rust_min(initaddrlen, unixlen);
-
             unsafe {
                 std::ptr::copy(
                     (unixa) as *mut interface::SockaddrUnix as *mut u8,
                     copyoutaddr,
-                    // fullcopylen as usize,
                     initaddrlen as usize,
                 )
             };
@@ -562,7 +557,6 @@ pub fn copy_out_sockaddr(generic_argument: u64, generic_argument1: u64, gensock:
                 std::ptr::copy(
                     (v4a) as *mut interface::SockaddrV4 as *mut u8,
                     copyoutaddr,
-                    // fullcopylen as usize,
                     initaddrlen as usize,
                 )
             };
@@ -579,7 +573,6 @@ pub fn copy_out_sockaddr(generic_argument: u64, generic_argument1: u64, gensock:
                 std::ptr::copy(
                     (v6a) as *mut interface::SockaddrV6 as *mut u8,
                     copyoutaddr,
-                    // fullcopylen as usize,
                     initaddrlen as usize,
                 )
             };
