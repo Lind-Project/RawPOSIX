@@ -64,7 +64,7 @@ impl VmmapEntry {
     }
 
     // Placeholder method to get maximum protection (currrently incomplete)
-    fn max_prot(&self) -> i32 {
+    fn get_max_prot(&self, cage_id: u64, FileDescriptor(u64)) -> i32 {
         let flags = PROT_NONE;
 
         flags
