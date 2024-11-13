@@ -70,9 +70,6 @@ impl VmmapEntry {
         flags
     }
 
-    // Placeholder method for printing (currently does nothing)
-    fn print(&self) {}
-
 
 // Placeholder method to check file descriptor protection (currently does nothing)
     fn check_fd_protection(&self, cage_id: i32) {
@@ -105,7 +102,7 @@ pub trait VmmapOps {
     fn add_entry(&mut self, vmmap_entry_ref: VmmapEntry);
 
     // Method to add an entry with override
-    fn add_entry_with_override(
+    fn add_entry_with_overwrite(
         &mut self,
         page_num: u32,
         npages: u32,
@@ -225,7 +222,7 @@ impl VmmapOps for Vmmap {
     }
 
     // Method to add an entry with override, using update method
-    fn add_entry_with_override(
+    fn add_entry_with_overwrite(
         &mut self,
         page_num: u32,
         npages: u32,
