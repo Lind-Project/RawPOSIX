@@ -1,5 +1,3 @@
-// Author: Nicholas Renner
-//
 // Timer functions for Rust interface.
 #![allow(dead_code)]
 

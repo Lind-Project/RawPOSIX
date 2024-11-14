@@ -13,8 +13,6 @@ use crate::safeposix::cage::Errno::EINVAL;
 use crate::safeposix::cage::*;
 use crate::safeposix::filesystem::convpath;
 use crate::safeposix::filesystem::normpath;
-// use crate::safeposix::filesystem::*;
-// use crate::safeposix::net::NET_METADATA;
 use crate::safeposix::shm::*;
 use crate::interface::ShmidsStruct;
 use crate::interface::StatData;

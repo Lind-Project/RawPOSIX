@@ -1,7 +1,4 @@
 #![allow(dead_code)]
-// Network related system calls
-// outlines and implements all of the networking system calls that are being emulated/faked in Lind
-
 use super::net_constants;
 use crate::{interface::FdSet, safeposix::cage::*};
 use crate::interface::*;
@@ -24,7 +21,6 @@ use std::ffi::CString;
 use std::ffi::CStr;
 use std::sync::Arc;
 
-use crate::safeposix::filesystem::convpath;
 use crate::safeposix::filesystem::normpath;
 
 use libc::*;
