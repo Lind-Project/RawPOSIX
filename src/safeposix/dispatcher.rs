@@ -143,9 +143,6 @@ macro_rules! get_onearg {
     };
 }
 
-// the following "quick" functions are implemented for research purposes
-// to increase I/O performance by bypassing the dispatcher and type checker
-
 #[no_mangle]
 pub extern "C" fn rustposix_thread_init(cageid: u64, signalflag: u64) {
     let cage = interface::cagetable_getref(cageid);
@@ -925,9 +922,6 @@ pub fn lind_syscall_api(
         GETSOCKNAME_SYSCALL => {
             let fd = arg1 as i32;
 
-            // let addrlen = arg3 as u32;
-            // let mut addr = interface::get_sockaddr(start_address + arg2), addrlen).unwrap();
-
             let mut addr = interface::GenSockaddr::V4(interface::SockaddrV4::default()); //value doesn't matter
 
             if interface::arg_nullity(arg2) || interface::arg_nullity(arg3) {
@@ -1127,7 +1121,6 @@ pub fn lindrustinit(verbosity: isize) {
         cageid: 1,
         cwd: interface::RustLock::new(interface::RustRfc::new(interface::RustPathBuf::from("/"))),
         parent: 1,
-        // filedescriptortable: init_fdtable(),
         cancelstatus: interface::RustAtomicBool::new(false),
         getgid: interface::RustAtomicI32::new(-1),
         getuid: interface::RustAtomicI32::new(-1),

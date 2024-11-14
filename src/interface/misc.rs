@@ -1,5 +1,3 @@
-// Author: Nicholas Renner
-//
 // Misc functions for interface
 // Random, locks, etc.
 #![allow(dead_code)]

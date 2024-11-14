@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-// Error handling for SafePOSIX
 use crate::interface;
 
 use std::sync::OnceLock;
