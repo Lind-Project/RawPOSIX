@@ -13,7 +13,6 @@ pub fn fork_vmmap(parent_vmmap: &Vmmap, child_vmmap: &Vmmap) {
     let child_base = child_vmmap.base_address.unwrap();
 
     for (_interval, entry) in parent_vmmap.entries.iter() {
-        println!("entry: {:?}", entry);
         if entry.prot == PROT_NONE { continue; }
         let addr_st = (entry.page_num << PAGESHIFT) as i32;
         let addr_len = (entry.npages << PAGESHIFT) as usize;

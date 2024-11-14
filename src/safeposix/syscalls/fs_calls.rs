@@ -44,7 +44,7 @@ impl Cage {
     *   Then return virtual fd
     */
     pub fn open_syscall(&self, path: &str, oflag: i32, mode: u32) -> i32 {
-        // println!("open {:?}", path);
+        println!("open {:?}", path);
         // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
@@ -339,6 +339,7 @@ impl Cage {
     *   - -1, fail 
     */
     pub fn read_syscall(&self, virtual_fd: i32, readbuf: *mut u8, count: usize) -> i32 {
+        println!("read_syscall on {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "read", "Bad File Descriptor");
@@ -588,6 +589,7 @@ impl Cage {
     /* 
     */
     pub fn dup2_syscall(&self, old_virtualfd: i32, new_virtualfd: i32) -> i32 {
+        println!("dup2_syscall, old: {}, new: {}", old_virtualfd, new_virtualfd);
         if old_virtualfd < 0 || new_virtualfd < 0 {
             return syscall_error(Errno::EBADF, "dup", "Bad File Descriptor");
         }
@@ -668,6 +670,7 @@ impl Cage {
        On error, -1 is returned 
     */
     pub fn fcntl_syscall(&self, virtual_fd: i32, cmd: i32, arg: i32) -> i32 {
+        println!("fcntl: fd={}, cmd={}, arg={}", virtual_fd, cmd, arg);
         match (cmd, arg) {
             (F_GETOWN, ..) => {
                 // 
@@ -781,17 +784,23 @@ impl Cage {
         virtual_fd: i32,
         off: i64
     ) -> i32 {
-        println!("mmap syscall: addr={:?}, len={}, prot={}, flags={}, fd={}, off={}", addr, len, prot, flags, virtual_fd, off);
+        // println!("mmap syscall: addr={:?}, len={}, prot={}, flags={}, fd={}, off={}", addr, len, prot, flags, virtual_fd, off);
 
         if virtual_fd != -1 {
             // TO-DO: handle vmmap result here
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
                 Ok(kernel_fd) => {
                     let ret = unsafe {
-                        ((libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64) 
-                            & 0xffffffff) as i32
+                        (libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64)
                     };
-                    return ret;
+
+                    // Check if mmap failed and return the appropriate error if so
+                    if ret == -1 {
+                        return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
+                    }
+
+                    let vmmap = self.vmmap.read();
+                    vmmap.sys_to_user(ret)
                 },
                 Err(_e) => {
                     return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor");
@@ -806,7 +815,6 @@ impl Cage {
             if ret == -1 {
                 return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
             }
-
             let vmmap = self.vmmap.read();
             vmmap.sys_to_user(ret)
             // return (ret & 0xffffffff) as i32;

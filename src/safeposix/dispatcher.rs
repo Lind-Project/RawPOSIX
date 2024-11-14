@@ -55,7 +55,7 @@ const EPOLL_CREATE_SYSCALL: i32 = 56;
 const EPOLL_CTL_SYSCALL: i32 = 57;
 const EPOLL_WAIT_SYSCALL: i32 = 58;
 
-const SHMGET_SYSCALL: i32 = 62; 
+const SHMGET_SYSCALL: i32 = 62;
 const SHMAT_SYSCALL: i32 = 63;
 const SHMDT_SYSCALL: i32 = 64;
 const SHMCTL_SYSCALL: i32 = 65;
@@ -259,7 +259,7 @@ pub fn lind_syscall_api(
         }
 
         MUNMAP_SYSCALL => {
-            let addr = (start_address + arg1) as *mut u8;
+            let addr = arg1 as *mut u8;
             let len = arg2 as usize;
             interface::check_cageid(cageid);
 
@@ -279,7 +279,9 @@ pub fn lind_syscall_api(
             let sysaddr = vmmap.user_to_sys(rounded_addr as i32);
             drop(vmmap);
 
-            let result = cage.mmap_syscall(sysaddr as *mut u8, len, PROT_NONE, (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED) as i32, -1, 0);
+            let rounded_length = round_up_page(len as u64) as usize;
+
+            let result = cage.mmap_syscall(sysaddr as *mut u8, rounded_length, PROT_NONE, (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED) as i32, -1, 0);
             if result as usize != rounded_addr {
                 panic!("MAP_FIXED not fixed");
             }
