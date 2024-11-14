@@ -115,6 +115,9 @@ const WRITEV_SYSCALL: i32 = 170;
 
 const CLONE_SYSCALL: i32 = 171;
 
+const BRK_SYSCALL: i32 = 175;
+const SBRK_SYSCALL: i32 = 176;
+
 const NANOSLEEP_TIME64_SYSCALL : i32 = 181;
 
 use std::ffi::CString;
@@ -1592,6 +1595,18 @@ pub fn lind_syscall_api(
                     .as_ref()
                     .unwrap()
                     .nanosleep_time64_syscall(clockid, flags, req, rem)
+            }
+        }
+
+        SBRK_SYSCALL => {
+            let brk = arg1 as u32;
+            
+            interface::check_cageid(cageid);
+            unsafe {
+                CAGE_TABLE[cageid as usize]
+                    .as_ref()
+                    .unwrap()
+                    .sbrk(brk)
             }
         }
 

@@ -565,7 +565,8 @@ impl VmmapOps for Vmmap {
 
                 let gap_size = aligned_end_page - aligned_start_page;
                 if gap_size >= rounded_num_pages {
-                    return Some(ie(aligned_start_page, aligned_start_page + rounded_num_pages + 1));
+                    // return Some(ie(aligned_start_page, aligned_start_page + rounded_num_pages + 1));
+                    return Some(ie(aligned_end_page - rounded_num_pages - 1, aligned_end_page))
                 }
             }
         }

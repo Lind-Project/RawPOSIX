@@ -19,6 +19,7 @@ use crate::safeposix::shm::*;
 use crate::interface::ShmidsStruct;
 use crate::interface::StatData;
 
+use libc::MAP_FIXED;
 use libc::*;
 use std::io::stdout;
 use std::os::unix::io::RawFd;
@@ -589,7 +590,7 @@ impl Cage {
     /* 
     */
     pub fn dup2_syscall(&self, old_virtualfd: i32, new_virtualfd: i32) -> i32 {
-        println!("dup2_syscall, old: {}, new: {}", old_virtualfd, new_virtualfd);
+        // println!("dup2_syscall, old: {}, new: {}", old_virtualfd, new_virtualfd);
         if old_virtualfd < 0 || new_virtualfd < 0 {
             return syscall_error(Errno::EBADF, "dup", "Bad File Descriptor");
         }
@@ -784,7 +785,7 @@ impl Cage {
         virtual_fd: i32,
         off: i64
     ) -> i32 {
-        // println!("mmap syscall: addr={:?}, len={}, prot={}, flags={}, fd={}, off={}", addr, len, prot, flags, virtual_fd, off);
+        println!("mmap syscall: addr={:?}, len={}, prot={}, flags={}, fd={}, off={}", addr, len, prot, flags, virtual_fd, off);
 
         if virtual_fd != -1 {
             // TO-DO: handle vmmap result here
@@ -836,6 +837,51 @@ impl Cage {
             return handle_errno(errno, "munmap");
         }
         ret
+    }
+
+    pub fn sbrk(&self, brk: u32) -> i32 {
+        println!("sbrk {}", brk);
+        let mut vmmap = self.vmmap.write();
+        let heap = vmmap.find_page(0).unwrap().clone();
+
+        if brk == 0 {
+            return (PAGESIZE * heap.npages) as i32;
+        }
+
+        let brk_page = (brk + PAGESIZE - 1) / PAGESIZE;
+
+        let heap_size = heap.npages;
+        println!("heap_size: {}, brk_page: {}", heap_size, brk_page);
+        vmmap.add_entry_with_override(0, heap_size + brk_page, heap.prot, heap.maxprot, heap.flags, heap.backing, heap.file_offset, heap.file_size, heap.cage_id);
+        
+        let usr_heap_base = (heap_size * PAGESIZE) as i32;
+        let sys_heap_base = vmmap.user_to_sys(usr_heap_base)as *mut u8;
+
+        println!("usr base: {}, length: {}", usr_heap_base, brk_page * PAGESIZE);
+
+        drop(vmmap);
+
+        let ret = self.mmap_syscall(
+            sys_heap_base,
+            (brk_page * PAGESIZE) as usize,
+            heap.prot,
+            heap.flags | MAP_FIXED,
+            -1,
+            0
+        );
+
+        unsafe {
+            let val = *sys_heap_base.add(65);
+            println!("val: {}", val);
+        }
+
+        println!("sbrk mmap return: {}", ret);
+
+        if ret < 0 {
+            panic!("sbrk mmap failed");
+        }
+
+        (PAGESIZE * heap.npages) as i32
     }
 
     //------------------------------------FLOCK SYSCALL------------------------------------

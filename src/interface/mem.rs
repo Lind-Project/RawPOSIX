@@ -16,6 +16,7 @@ pub fn fork_vmmap(parent_vmmap: &Vmmap, child_vmmap: &Vmmap) {
         if entry.prot == PROT_NONE { continue; }
         let addr_st = (entry.page_num << PAGESHIFT) as i32;
         let addr_len = (entry.npages << PAGESHIFT) as usize;
+        println!("vmmap fork: copy {}-{}\n", addr_st, addr_st + addr_len as i32);
 
         let parent_st = parent_vmmap.user_to_sys(addr_st);
         let child_st = child_vmmap.user_to_sys(addr_st);
