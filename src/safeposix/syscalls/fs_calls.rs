@@ -189,6 +189,7 @@ impl Cage {
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
         let full_path = format!("{}{}", LIND_ROOT, relative_path);
+        println!("stat full_path: {}", full_path);
         let c_path = CString::new(full_path).unwrap();
 
         // Declare statbuf by ourselves 
@@ -201,6 +202,9 @@ impl Cage {
             let errno = get_errno();
             return handle_errno(errno, "stat");
         }
+
+        let mode = libc_statbuf.st_mode as u32;
+        println!("st_mode: {}, ISDIR: {}", mode, mode & (libc::S_IFDIR as u32));
         
         rposix_statbuf.st_blksize = libc_statbuf.st_blksize as i32;
         rposix_statbuf.st_blocks = libc_statbuf.st_blocks as u32;
@@ -848,7 +852,7 @@ impl Cage {
             return (PAGESIZE * heap.npages) as i32;
         }
 
-        let brk_page = (brk + PAGESIZE - 1) / PAGESIZE;
+        let brk_page = ((brk + 65536 - 1) / 65536) * 16;
 
         let heap_size = heap.npages;
         println!("heap_size: {}, brk_page: {}", heap_size, brk_page);
@@ -861,25 +865,25 @@ impl Cage {
 
         drop(vmmap);
 
-        let ret = self.mmap_syscall(
-            sys_heap_base,
-            (brk_page * PAGESIZE) as usize,
-            heap.prot,
-            heap.flags | MAP_FIXED,
-            -1,
-            0
-        );
+        // let ret = self.mmap_syscall(
+        //     sys_heap_base,
+        //     (brk_page * PAGESIZE) as usize,
+        //     heap.prot,
+        //     heap.flags | MAP_FIXED,
+        //     -1,
+        //     0
+        // );
 
-        unsafe {
-            let val = *sys_heap_base.add(65);
-            println!("val: {}", val);
-        }
+        // unsafe {
+        //     let val = *sys_heap_base.add(65);
+        //     println!("val: {}", val);
+        // }
 
-        println!("sbrk mmap return: {}", ret);
+        // println!("sbrk mmap return: {}", ret);
 
-        if ret < 0 {
-            panic!("sbrk mmap failed");
-        }
+        // if ret < 0 {
+        //     panic!("sbrk mmap failed");
+        // }
 
         (PAGESIZE * heap.npages) as i32
     }
