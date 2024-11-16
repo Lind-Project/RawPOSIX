@@ -304,6 +304,9 @@ impl Cage {
                 // push the exit status to parent's zombie list
                 let mut zombie_vec = parent.zombies.write();
                 zombie_vec.push(Zombie { cageid: self.cageid, exit_code: status });
+            } else {
+                // if parent already exited
+                // BUG: we currently do not handle the situation where a parent has exited already
             }
         }
 
@@ -320,6 +323,13 @@ impl Cage {
         status
     }
 
+    //------------------------------------WAITPID SYSCALL------------------------------------
+    /*
+    *   waitpid() will return the cageid of waited cage, or 0 when WNOHANG is set and there is no cage already exited
+    *   waitpid_syscall utilizes the zombie list stored in cage struct. When a cage exited, a zombie entry will be inserted
+    *   into the end of its parent's zombie list. Then when parent wants to wait for any of child, it could just check its
+    *   zombie list and retrieve the first entry from it (first in, first out).
+    */
     pub fn waitpid_syscall(&self, cageid: i32, status: &mut i32, options: i32) -> i32 {
         let mut zombies = self.zombies.write();
         let child_num = self.child_num.load(interface::RustAtomicOrdering::Relaxed);
@@ -333,7 +343,7 @@ impl Cage {
 
         // cageid <= 0 means wait for ANY child
         // cageid < 0 actually refers to wait for any child process whose process group ID equals -pid
-        // but we do not have the concept of process group in lind, so let's just treat it as the cageid == 0
+        // but we do not have the concept of process group in lind, so let's just treat it as cageid == 0
         if cageid <= 0 {
             loop {
                 if zombies.len() == 0 && (options & libc::WNOHANG > 0) {
