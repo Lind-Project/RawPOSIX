@@ -188,26 +188,42 @@ impl Cage {
     }
 
     /*
-    *   exec() will only return if error happens 
+    *   In our implementation, WASM is responsible for handling functionalities such as loading and executing the 
+    *   new program, preserving process attributes, and resetting memory and the stack. 
+    *
+    *   In RawPOSIX, the focus is on memory management inheritance and resource cleanup and release. 
+    *   Specifically, RawPOSIX handles tasks such as clearing memory mappings, resetting shared memory, managing file 
+    *   descriptors (closing or inheriting them based on the `should_cloexec` flag in fdtable), resetting semaphores, 
+    *   and managing process attributes and threads (terminating unnecessary threads).
+    *
+    *   This allows us to fully implement the exec functionality while aligning with POSIX standards. 
+    *
+    *   Cage fields remained in exec():
+    *       cageid, cwd, parent, interval_timer
     */
-    pub fn exec_syscall(&self, child_cageid: u64) -> i32 {
+    pub fn exec_syscall(&self) -> i32 {
         // Empty fd with flag should_cloexec 
         fdtables::empty_fds_for_exec(self.cageid);
-        // Add the new one to fdtable
-        let _ = fdtables::copy_fdtable_for_cage(self.cageid, child_cageid);
-        // Delete the original one
-        let _newfdtable = fdtables::remove_cage_from_fdtable(self.cageid);
 
-        interface::cagetable_remove(self.cageid);
-
+        // Unmap shared memory mappings of the current process
         self.unmap_shm_mappings();
 
-        // we grab the parent cages main threads sigset and store it at 0
-        // this way the child can initialize the sigset properly when it establishes its own mainthreadid
+        // In the Cage structure, some fields (e.g., cancelstatus, rev_shm, mutex_table) need to be modified 
+        // using mechanisms of interior mutability, requiring explicit locks or atomic operations. For example:
+        //
+        //      let mut mutex_table = cage.mutex_table.write().unwrap(); 
+        //      mutex_table.push(Some(interface::RustRfc::new(interface::RawMutex::new())));
+        //
+        // Since our design involves a large number of field updates (thread_table, sem_table, cancelstatus, rev_shm, mutex_table, etc), 
+        // directly modifying fields would introduce additional overhead compared to simply deleting and recreating the object. 
+        // Therefore, in this context, we choose to update the Cage information in the exec process by deleting and recreating it 
+        // instead.
+        interface::cagetable_remove(self.cageid);
+
+        // Inherits the signal mask set and resets the signal handler. newsigset stores the inherited 
+        // signal mask set. Signal handlers are reset to their default state.
         let newsigset = interface::RustHashMap::new();
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
-            // we don't add these for the test suite
-            // BUG: Signals are commented out until we add them to lind-wasm
             // let mainsigsetatomic = self
             //     .sigset
             //     .get(
@@ -222,8 +238,9 @@ impl Cage {
             // newsigset.insert(0, mainsigset);
         }
 
+        // Update status
         let newcage = Cage {
-            cageid: child_cageid,
+            cageid: self.cageid,
             cwd: interface::RustLock::new(self.cwd.read().clone()),
             parent: self.parent,
             cancelstatus: interface::RustAtomicBool::new(false),
@@ -240,11 +257,11 @@ impl Cage {
             sigset: newsigset,
             pendingsigset: interface::RustHashMap::new(),
             main_threadid: interface::RustAtomicU64::new(0),
-            interval_timer: self.interval_timer.clone_with_new_cageid(child_cageid),
+            interval_timer: self.interval_timer.clone(),
         };
-        //wasteful clone of fdtable, but mutability constraints exist
 
-        interface::cagetable_insert(child_cageid, newcage);
+        interface::cagetable_insert(self.cageid, newcage);
+
         0
     }
 

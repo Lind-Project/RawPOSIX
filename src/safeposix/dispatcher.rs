@@ -343,9 +343,8 @@ pub fn lind_syscall_api(
         }
 
         EXEC_SYSCALL => {
-            let child_cageid = arg1 as u64;
             interface::cagetable_getref(cageid)
-                .exec_syscall(child_cageid)
+                .exec_syscall()
         }
 
         EXIT_SYSCALL => {
