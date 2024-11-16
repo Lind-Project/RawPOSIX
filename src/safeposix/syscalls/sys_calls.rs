@@ -224,18 +224,18 @@ impl Cage {
         // signal mask set. Signal handlers are reset to their default state.
         let newsigset = interface::RustHashMap::new();
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
-            let mainsigsetatomic = self
-                .sigset
-                .get(
-                    &self
-                        .main_threadid
-                        .load(interface::RustAtomicOrdering::Relaxed),
-                )
-                .unwrap();
-            let mainsigset = interface::RustAtomicU64::new(
-                mainsigsetatomic.load(interface::RustAtomicOrdering::Relaxed),
-            );
-            newsigset.insert(0, mainsigset);
+            // let mainsigsetatomic = self
+            //     .sigset
+            //     .get(
+            //         &self
+            //             .main_threadid
+            //             .load(interface::RustAtomicOrdering::Relaxed),
+            //     )
+            //     .unwrap();
+            // let mainsigset = interface::RustAtomicU64::new(
+            //     mainsigsetatomic.load(interface::RustAtomicOrdering::Relaxed),
+            // );
+            // newsigset.insert(0, mainsigset);
         }
 
         // Update status
