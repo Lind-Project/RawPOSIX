@@ -303,7 +303,7 @@ impl Cage {
         status
     }
 
-    pub fn waitpid_syscall(&self, cageid: u64, status: &mut i32, options: i32) -> i32 {
+    pub fn waitpid_syscall(&self, cageid: i32, status: &mut i32, options: i32) -> i32 {
         let mut zombies = self.zombies.write();
         let child_num = self.child_num.load(interface::RustAtomicOrdering::Relaxed);
 
@@ -344,7 +344,7 @@ impl Cage {
         // if cageid is specified, then we need to look up the zombie list for the id
         else {
             // first let's check if the cageid is in the zombie list
-            if let Some(index) = zombies.iter().position(|zombie| zombie.cageid == cageid) {
+            if let Some(index) = zombies.iter().position(|zombie| zombie.cageid == cageid as u64) {
                 // find the cage in zombie list, remove it from the list and break
                 zombie_opt = Some(zombies.remove(index));
             } else {
@@ -353,7 +353,7 @@ impl Cage {
                 // 2. the cage has exited, but it is not the child of this cage, or
                 // 3. the cage does not exist
                 // we need to make sure the child is still running, and it is the child of this cage
-                let child = interface::cagetable_getref_opt(cageid);
+                let child = interface::cagetable_getref_opt(cageid as u64);
                 if let Some(child_cage) = child {
                     // make sure the child's parent is correct
                     if child_cage.parent != self.cageid {
@@ -377,7 +377,7 @@ impl Cage {
                     zombies = self.zombies.write();
 
                     // let's check if the zombie list contains the cage
-                    if let Some(index) = zombies.iter().position(|zombie| zombie.cageid == cageid) {
+                    if let Some(index) = zombies.iter().position(|zombie| zombie.cageid == cageid as u64) {
                         // find the cage in zombie list, remove it from the list and break
                         zombie_opt = Some(zombies.remove(index));
                         break;
