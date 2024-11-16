@@ -114,6 +114,8 @@ const SYNC_FILE_RANGE: i32 = 164;
 const WRITEV_SYSCALL: i32 = 170;
 
 const CLONE_SYSCALL: i32 = 171;
+const WAIT_SYSCALL: i32 = 172;
+const WAITPID_SYSCALL: i32 = 173;
 
 const BRK_SYSCALL: i32 = 175;
 const SBRK_SYSCALL: i32 = 176;
@@ -1161,6 +1163,22 @@ pub fn lind_syscall_api(
                     .unwrap()
                     .sbrk(brk)
             }
+        }
+        
+        WAIT_SYSCALL => {
+            let mut status = unsafe { &mut *((start_address + arg1) as *mut i32) };
+            
+            interface::cagetable_getref(cageid)
+                .wait_syscall(&mut status)
+        }
+
+        WAITPID_SYSCALL => {
+            let pid = arg1 as u64;
+            let mut status = unsafe { &mut *((start_address + arg2) as *mut i32) };
+            let options = arg3 as i32;
+            
+            interface::cagetable_getref(cageid)
+                .waitpid_syscall(pid, &mut status, options)
         }
 
         _ => -1, // Return -1 for unknown syscalls
