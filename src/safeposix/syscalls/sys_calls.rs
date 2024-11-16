@@ -48,23 +48,6 @@ impl Cage {
     pub fn fork_syscall(&self, child_cageid: u64) -> i32 {
         // Modify the fdtable manually 
         fdtables::copy_fdtable_for_cage(self.cageid, child_cageid).unwrap();
-
-        // println!("[FORK]");
-        // io::stdout().flush().unwrap();
-        // if child_cageid == 22 {
-        //     let mut count = 0;
-        //     FDTABLE.iter().for_each(|entry| {
-        //         println!("Cage ID: {}", entry.key());
-        //         for (index, fd_entry) in entry.value().iter().enumerate() {
-        //             if let Some(entry) = fd_entry {
-        //                 println!("  Index {}: {:?}", index, entry);
-        //                 count = count+1;
-        //             }
-        //         }
-        //     });
-        //     println!("Total: {:?}", count);
-        //     io::stdout().flush().unwrap();
-        // }
         
         //construct a new mutex in the child cage where each initialized mutex is in the parent cage
         let mutextable = self.mutex_table.read();
@@ -124,25 +107,13 @@ impl Cage {
         }
         drop(cvtable);
 
-        // let cwd_container = self.cwd.read();
-        // if let Some(cwdinodenum) = metawalk(&cwd_container) {
-        //     if let Inode::Dir(ref mut cwddir) =
-        //         *(FS_METADATA.inodetable.get_mut(&cwdinodenum).unwrap())
-        //     {
-        //         cwddir.refcount += 1;
-        //     } else {
-        //         panic!("We changed from a directory that was not a directory in chdir!");
-        //     }
-        // } else {
-        //     panic!("We changed from a directory that was not a directory in chdir!");
-        // }
-
         // we grab the parent cages main threads sigset and store it at 0
         // we do this because we haven't established a thread for the cage yet, and dont have a threadid to store it at
         // this way the child can initialize the sigset properly when it establishes its own mainthreadid
         let newsigset = interface::RustHashMap::new();
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
             // we don't add these for the test suite
+            // BUG: Signals are commented out until we add them to lind-wasm
             // let mainsigsetatomic = self
             //     .sigset
             //     .get(
@@ -177,7 +148,6 @@ impl Cage {
             cageid: child_cageid,
             cwd: interface::RustLock::new(self.cwd.read().clone()),
             parent: self.cageid,
-            // filedescriptortable: newfdtable,
             cancelstatus: interface::RustAtomicBool::new(false),
             // This happens because self.getgid tries to copy atomic value which does not implement "Copy" trait; self.getgid.load returns i32.
             getgid: interface::RustAtomicI32::new(
@@ -241,6 +211,7 @@ impl Cage {
         let newsigset = interface::RustHashMap::new();
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
             // we don't add these for the test suite
+            // BUG: Signals are commented out until we add them to lind-wasm
             // let mainsigsetatomic = self
             //     .sigset
             //     .get(
@@ -259,7 +230,6 @@ impl Cage {
             cageid: child_cageid,
             cwd: interface::RustLock::new(self.cwd.read().clone()),
             parent: self.parent,
-            // filedescriptortable: self.filedescriptortable.clone(),
             cancelstatus: interface::RustAtomicBool::new(false),
             getgid: interface::RustAtomicI32::new(-1),
             getuid: interface::RustAtomicI32::new(-1),
@@ -284,9 +254,6 @@ impl Cage {
     }
 
     pub fn exit_syscall(&self, status: i32) -> i32 {
-        // println!("[[EXIT]] - {:?}", self.cageid);
-        // io::stdout().flush().unwrap();
-
         //flush anything left in stdout
         interface::flush_stdout();
         self.unmap_shm_mappings();
@@ -299,6 +266,7 @@ impl Cage {
         // Trigger SIGCHLD
         if !interface::RUSTPOSIX_TESTSUITE.load(interface::RustAtomicOrdering::Relaxed) {
             // dont trigger SIGCHLD for test suite
+            // BUG: Signals are commented out until we add them to lind-wasm
             // if self.cageid != self.parent {
             //     interface::lind_kill_from_id(self.parent, libc::SIGCHLD);
             // }
@@ -315,8 +283,10 @@ impl Cage {
         self.parent as i32 // mimicing the call above -- easy to change later if necessary
     }
 
-    /*if its negative 1
-    return -1, but also set the values in the cage struct to the DEFAULTs for future calls*/
+    /*
+    * if its negative 1
+    * return -1, but also set the values in the cage struct to the DEFAULTs for future calls
+    */
     pub fn getgid_syscall(&self) -> i32 {
         if self.getgid.load(interface::RustAtomicOrdering::Relaxed) == -1 {
             self.getgid
@@ -445,14 +415,6 @@ impl Cage {
         res
     }
 
-    // pub fn setitimer_syscall(
-    //     &self,
-    //     which: i32,
-    //     new_value: &itimerval,
-    //     old_value: &mut itimerval,
-    // ) -> i32 {
-    //     unsafe { libc::syscall(SYS_setitimer, which, new_value, old_value) as i32 }
-    // }
     pub fn setitimer_syscall(
         &self,
         which: i32,
