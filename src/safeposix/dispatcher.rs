@@ -1008,7 +1008,7 @@ pub fn lind_syscall_api(
         }
 
         WAIT_SYSCALL => {
-            let mut status = unsafe { &mut *((start_address + arg1) as *mut i32) };
+            let mut status = interface::get_i32_ref(start_address + arg1).unwrap();
             
             interface::cagetable_getref(cageid)
                 .wait_syscall(&mut status)
@@ -1016,7 +1016,7 @@ pub fn lind_syscall_api(
 
         WAITPID_SYSCALL => {
             let pid = arg1 as i32;
-            let mut status = unsafe { &mut *((start_address + arg2) as *mut i32) };
+            let mut status = interface::get_i32_ref(start_address + arg2).unwrap();
             let options = arg3 as i32;
             
             interface::cagetable_getref(cageid)
