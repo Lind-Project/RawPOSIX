@@ -1015,7 +1015,7 @@ pub fn lind_syscall_api(
         }
 
         WAITPID_SYSCALL => {
-            let pid = arg1 as u64;
+            let pid = arg1 as i32;
             let mut status = unsafe { &mut *((start_address + arg2) as *mut i32) };
             let options = arg3 as i32;
             
