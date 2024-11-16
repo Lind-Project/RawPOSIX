@@ -1097,6 +1097,8 @@ pub fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(0),
+        zombies: interface::RustLock::new(vec![]),
+        child_num: interface::RustAtomicU64::new(0),
     };
 
     interface::cagetable_insert(0, utilcage);
@@ -1136,6 +1138,8 @@ pub fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(1),
+        zombies: interface::RustLock::new(vec![]),
+        child_num: interface::RustAtomicU64::new(0),
     };
     interface::cagetable_insert(1, initcage);
     fdtables::init_empty_cage(1);
