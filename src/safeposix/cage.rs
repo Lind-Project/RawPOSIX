@@ -14,6 +14,7 @@ pub use super::syscalls::sys_constants::*;
 
 pub use crate::interface::CAGE_TABLE;
 
+// Used to implement waitpid
 #[derive(Debug, Clone, Copy)]
 pub struct Zombie {
     pub cageid: u64,
