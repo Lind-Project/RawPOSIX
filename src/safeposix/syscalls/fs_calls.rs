@@ -17,6 +17,7 @@ use crate::safeposix::shm::*;
 use crate::interface::ShmidsStruct;
 use crate::interface::StatData;
 
+use libc::MAP_FIXED;
 use libc::*;
 use std::io::stdout;
 use std::os::unix::io::RawFd;
@@ -769,16 +770,23 @@ impl Cage {
         prot: i32,
         flags: i32,
         virtual_fd: i32,
-        off: i64,
+        off: i64
     ) -> i32 {
         if virtual_fd != -1 {
+            // TO-DO: handle vmmap result here
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
                 Ok(kernel_fd) => {
                     let ret = unsafe {
-                        ((libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64) 
-                            & 0xffffffff) as i32
+                        (libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64)
                     };
-                    return ret;
+
+                    // Check if mmap failed and return the appropriate error if so
+                    if ret == -1 {
+                        return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
+                    }
+
+                    let vmmap = self.vmmap.read();
+                    vmmap.sys_to_user(ret)
                 },
                 Err(_e) => {
                     return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor");
@@ -793,7 +801,8 @@ impl Cage {
             if ret == -1 {
                 return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
             }
-            return (ret & 0xffffffff) as i32;
+            let vmmap = self.vmmap.read();
+            vmmap.sys_to_user(ret)
         }
     }
 
@@ -812,6 +821,48 @@ impl Cage {
             return handle_errno(errno, "munmap");
         }
         ret
+    }
+
+    pub fn sbrk(&self, brk: u32) -> i32 {
+        let mut vmmap = self.vmmap.write();
+        let heap = vmmap.find_page(0).unwrap().clone();
+
+        if brk == 0 {
+            return (PAGESIZE * heap.npages) as i32;
+        }
+
+        let brk_page = ((brk + 65536 - 1) / 65536) * 16;
+
+        let heap_size = heap.npages;
+        vmmap.add_entry_with_overwrite(0, heap_size + brk_page, heap.prot, heap.maxprot, heap.flags, heap.backing, heap.file_offset, heap.file_size, heap.cage_id);
+        
+        let usr_heap_base = (heap_size * PAGESIZE) as i32;
+        let sys_heap_base = vmmap.user_to_sys(usr_heap_base)as *mut u8;
+
+        drop(vmmap);
+
+        // TODO: Currently we are not calling mmap to change prot here
+        // since this is handled within wasmtime. This will be changed
+        // later
+        // let ret = self.mmap_syscall(
+        //     sys_heap_base,
+        //     (brk_page * PAGESIZE) as usize,
+        //     heap.prot,
+        //     heap.flags | MAP_FIXED,
+        //     -1,
+        //     0
+        // );
+        //
+        // unsafe {
+        //     let val = *sys_heap_base.add(65);
+        //     println!("val: {}", val);
+        // }
+        //
+        // if ret < 0 {
+        //     panic!("sbrk mmap failed");
+        // }
+
+        (PAGESIZE * heap.npages) as i32
     }
 
     //------------------------------------FLOCK SYSCALL------------------------------------
@@ -1179,9 +1230,9 @@ impl Cage {
         let prot: i32;
         if let Some(mut segment) = metadata.shmtable.get_mut(&shmid) {
             if 0 != (shmflg & fs_constants::SHM_RDONLY) {
-                prot = PROT_READ;
+                prot = libc::PROT_READ;
             } else {
-                prot = PROT_READ | PROT_WRITE;
+                prot = libc::PROT_READ | libc::PROT_WRITE;
             }
             let mut rev_shm = self.rev_shm.lock();
             rev_shm.push((shmaddr as u32, shmid));

@@ -183,6 +183,8 @@ pub struct Vmmap {
     pub entries: NoditMap<u32, Interval<u32>, VmmapEntry>, // Keyed by `page_num`
     pub cached_entry: Option<VmmapEntry>,                  // TODO: is this still needed?
                                                            // Use Option for safety
+    pub base_address: Option<i64>,                         // wasm base address. None means uninitialized yet
+
 }
 
 #[allow(dead_code)]
@@ -191,6 +193,7 @@ impl Vmmap {
         Vmmap {
             entries: NoditMap::new(),
             cached_entry: None,
+            base_address: None
         }
     }
 
@@ -202,6 +205,18 @@ impl Vmmap {
     // Method to truncate page number down to the nearest multiple of pages_per_map
     fn trunc_page_num_down_to_map_multiple(&self, npages: u32, pages_per_map: u32) -> u32 {
         npages & !(pages_per_map - 1)
+    }
+
+    pub fn set_base_address(&mut self, base_address: i64) {
+        self.base_address = Some(base_address);
+    }
+
+    pub fn user_to_sys(&self, address: i32) -> i64 {
+        address as i64 + self.base_address.unwrap()
+    }
+
+    pub fn sys_to_user(&self, address: i64) -> i32 {
+        (address as i64 - self.base_address.unwrap()) as i32
     }
 
     fn visit() {}
