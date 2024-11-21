@@ -1022,6 +1022,8 @@ pub fn lind_cage_vmmap_init(cageid: u64) {
     let cage = interface::cagetable_getref(cageid);
     let mut vmmap = cage.vmmap.write();
     vmmap.add_entry(VmmapEntry::new(0, 0x30, PROT_WRITE | PROT_READ, 0 /* not sure about this field */, (MAP_PRIVATE | MAP_ANONYMOUS) as i32, false, 0, 0, cageid, MemoryBackingType::Anonymous));
+    // BUG: currently need to insert an entry at the end to indicate the end of memory space. This should be fixed soon so that
+    //      no dummy entries are required to be inserted
     vmmap.add_entry(VmmapEntry::new(1 << 18, 1, PROT_NONE, 0 /* not sure about this field */, (MAP_PRIVATE | MAP_ANONYMOUS) as i32, false, 0, 0, cageid, MemoryBackingType::Anonymous));
 }
 
