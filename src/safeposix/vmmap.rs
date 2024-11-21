@@ -15,9 +15,7 @@ pub enum MemoryBackingType {
     FileDescriptor(u64), // stores file descriptor addr
 }
 
-/// In the old native client based vmmap, we relied on the fd, shmid
-/// fields. 
-/// 
+
 /// An entry in the virtual memory map that contains fields such as page number, number of pages, 
 /// permissions, file offset, file size, shared memory ID, and backing fields to distinguish memory types.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -34,6 +32,9 @@ pub struct VmmapEntry {
     pub backing: MemoryBackingType,
 }
 
+
+// Implement methods for VmmapEntry
+// Constructor to create a new VmmapEntry
 #[allow(dead_code)]
 impl VmmapEntry {
     pub fn new(
@@ -45,7 +46,7 @@ impl VmmapEntry {
         removed: bool,
         file_offset: i64,
         file_size: i64,
-        cage_id: u64,
+        cage_id: u64, //This is the cage id to refer to for file backings
         backing: MemoryBackingType,
     ) -> Self {
         return VmmapEntry {
@@ -62,19 +63,15 @@ impl VmmapEntry {
         };
     }
 
-    fn max_prot(&self) -> i32 {
+    // Placeholder method to get maximum protection (currrently incomplete)
+    fn get_max_prot(&self, cage_id: u64, FileDescriptor(u64)) -> i32 {
         let flags = PROT_NONE;
 
         flags
     }
 
-    fn print(&self) {}
 
-    // gonna have 3 types of memory:
-    // memory that has no memory backing
-    // things that are backed by fd -> represented by -1
-
-    // Leave todo
+// Placeholder method to check file descriptor protection (currently does nothing)
     fn check_fd_protection(&self, cage_id: i32) {
         let _ = cage_id;
     } // will call the microvisor, need to pass fd
@@ -85,6 +82,8 @@ impl VmmapEntry {
 // allowing different Vmmap versions to share the same interface.
 #[allow(dead_code)]
 pub trait VmmapOps {
+
+    // Method to update a memory map entry
     fn update(
         &mut self,
         page_num: u32,
@@ -99,9 +98,11 @@ pub trait VmmapOps {
         cage_id: u64,
     ) -> Result<(), io::Error>;
 
+    // Method to add a new entry to the memory map
     fn add_entry(&mut self, vmmap_entry_ref: VmmapEntry);
 
-    fn add_entry_with_override(
+    // Method to add an entry with override
+    fn add_entry_with_overwrite(
         &mut self,
         page_num: u32,
         npages: u32,
@@ -114,44 +115,61 @@ pub trait VmmapOps {
         cage_id: u64,
     ) -> Result<(), io::Error>;
 
+    // Method to change protection of a memory region
     fn change_prot(&mut self, page_num: u32, npages: u32, new_prot: i32);
 
+    // Method to remove an entry from the memory map
     fn remove_entry(&mut self, page_num: u32, npages: u32) -> Result<(), io::Error>;
 
+    // Method to check if a mapping exists
     fn check_existing_mapping(&self, page_num: u32, npages: u32, prot: i32) -> bool;
 
+    // Method to check address mapping
     fn check_addr_mapping(&mut self, page_num: u32, npages: u32, prot: i32) -> Option<u32>;
 
+    // Method to find a page in the memory map
     fn find_page(&self, page_num: u32) -> Option<&VmmapEntry>;
 
+    // Method to find a mutable page in the memory map
     fn find_page_mut(&mut self, page_num: u32) -> Option<&mut VmmapEntry>;
 
+    // Method to iterate over pages
     fn find_page_iter(
         &self,
         page_num: u32,
     ) -> impl DoubleEndedIterator<Item = (&Interval<u32>, &VmmapEntry)>;
 
+    // Method to iterate over mutable pages
     fn find_page_iter_mut(
         &mut self,
         page_num: u32,
     ) -> impl DoubleEndedIterator<Item = (&Interval<u32>, &mut VmmapEntry)>;
 
+
+    // Method to get the first entry in the memory map
     fn first_entry(&self) -> Option<(&Interval<u32>, &VmmapEntry)>;
 
+    // Method to get the last entry in the memory map
     fn last_entry(&self) -> Option<(&Interval<u32>, &VmmapEntry)>;
 
+    // Method to iterate over entries in both directions
     fn double_ended_iter(&self) -> impl DoubleEndedIterator<Item = (&Interval<u32>, &VmmapEntry)>;
 
+    // Method to iterate over mutable entries in both directions
     fn double_ended_iter_mut(
         &mut self,
     ) -> impl DoubleEndedIterator<Item = (&Interval<u32>, &mut VmmapEntry)>;
 
+    // Method to find space in the memory map
     fn find_space(&self, npages: u32) -> Option<Interval<u32>>;
 
+    // Method to find space above a hint
     fn find_space_above_hint(&self, npages: u32, hint: u32) -> Option<Interval<u32>>;
 
+    // Method to find map space
     fn find_map_space(&self, num_pages: u32, pages_per_map: u32) -> Option<Interval<u32>>;
 
+    // Method to find map space with a hint
     fn find_map_space_with_hint(
         &self,
         num_pages: u32,
@@ -178,10 +196,12 @@ impl Vmmap {
         }
     }
 
+    // Method to round page number up to the nearest multiple of pages_per_map
     fn round_page_num_up_to_map_multiple(&self, npages: u32, pages_per_map: u32) -> u32 {
         (npages + pages_per_map - 1) & !(pages_per_map - 1)
     }
 
+    // Method to truncate page number down to the nearest multiple of pages_per_map
     fn trunc_page_num_down_to_map_multiple(&self, npages: u32, pages_per_map: u32) -> u32 {
         npages & !(pages_per_map - 1)
     }
@@ -215,7 +235,8 @@ impl VmmapOps for Vmmap {
         );
     }
 
-    fn add_entry_with_override(
+    // Method to add an entry with override, using update method
+    fn add_entry_with_overwrite(
         &mut self,
         page_num: u32,
         npages: u32,
@@ -262,6 +283,7 @@ impl VmmapOps for Vmmap {
         )
     }
 
+    // Method to update a memory map entry, handling insertion and removal
     fn update(
         &mut self,
         page_num: u32,
@@ -314,6 +336,7 @@ impl VmmapOps for Vmmap {
         Ok(())
     }
 
+    // Method to change protection of a memory region
     fn change_prot(&mut self, page_num: u32, npages: u32, new_prot: i32) {
         let new_region_end_page = page_num + npages;
         let new_region_start_page = page_num;
@@ -345,6 +368,7 @@ impl VmmapOps for Vmmap {
         }
     }
 
+    // Method to check if a mapping exists
     fn check_existing_mapping(&self, page_num: u32, npages: u32, prot: i32) -> bool {
         let region_end_page = page_num + npages;
         let region_interval = ie(page_num, region_end_page);
@@ -383,6 +407,7 @@ impl VmmapOps for Vmmap {
         false
     }
 
+    // Method to check address mapping, using cached entry if possible
     fn check_addr_mapping(&mut self, page_num: u32, npages: u32, prot: i32) -> Option<u32> {
         let region_end_page = page_num + npages;
 
@@ -436,32 +461,38 @@ impl VmmapOps for Vmmap {
         None
     }
 
+    //Method to find a page in the memory map
     fn find_page(&self, page_num: u32) -> Option<&VmmapEntry> {
         self.entries.get_at_point(page_num)
     }
-
+    // Method to find a mutable page in the memory map
     fn find_page_mut(&mut self, page_num: u32) -> Option<&mut VmmapEntry> {
         self.entries.get_at_point_mut(page_num)
     }
 
+    // Method to get the last entry in the memory map
     fn last_entry(&self) -> Option<(&Interval<u32>, &VmmapEntry)> {
         self.entries.last_key_value()
     }
 
+    // Method to get the first entry in the memory map
     fn first_entry(&self) -> Option<(&Interval<u32>, &VmmapEntry)> {
         self.entries.first_key_value()
     }
 
+    // Method to iterate over entries in both directions
     fn double_ended_iter(&self) -> impl DoubleEndedIterator<Item = (&Interval<u32>, &VmmapEntry)> {
         self.entries.iter()
     }
 
+    // Method to iterate over mutable entries in both directions
     fn double_ended_iter_mut(
         &mut self,
     ) -> impl DoubleEndedIterator<Item = (&Interval<u32>, &mut VmmapEntry)> {
         self.entries.iter_mut()
     }
 
+    // Method to iterate over pages, starting from a given page number
     fn find_page_iter(
         &self,
         page_num: u32,
@@ -474,6 +505,7 @@ impl VmmapOps for Vmmap {
         }
     }
 
+    // Method to iterate over mutable pages, starting from a given page number
     fn find_page_iter_mut(
         &mut self,
         page_num: u32,
@@ -487,6 +519,7 @@ impl VmmapOps for Vmmap {
         }
     }
 
+    // Method to find space in the memory map
     fn find_space(&self, npages: u32) -> Option<Interval<u32>> {
         let start = self.first_entry();
         let end = self.last_entry();
@@ -512,6 +545,7 @@ impl VmmapOps for Vmmap {
         None
     }
 
+    // Method to find space above a hint
     fn find_space_above_hint(&self, npages: u32, hint: u32) -> Option<Interval<u32>> {
         let start = hint;
         let end = self.last_entry();
@@ -533,6 +567,7 @@ impl VmmapOps for Vmmap {
         None
     }
 
+    // Method to find map space, rounding page numbers up to the nearest multiple of pages_per_map
     fn find_map_space(&self, num_pages: u32, pages_per_map: u32) -> Option<Interval<u32>> {
         // println!("find_map_space: num_pages={}, pages_per_map={}", num_pages, pages_per_map);
         let start = self.first_entry();
@@ -574,6 +609,7 @@ impl VmmapOps for Vmmap {
         None
     }
 
+    // Method to find map space with a hint, rounding page numbers up to the nearest multiple of pages_per_map
     fn find_map_space_with_hint(
         &self,
         num_pages: u32,
