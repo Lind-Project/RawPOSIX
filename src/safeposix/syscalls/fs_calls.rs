@@ -43,7 +43,7 @@ impl Cage {
     *   Then return virtual fd
     */
     pub fn open_syscall(&self, path: &str, oflag: i32, mode: u32) -> i32 {
-        println!("open {:?}", path);
+        // println!("open {:?}", path);
         // Convert data type from &str into *const i8
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
@@ -187,7 +187,7 @@ impl Cage {
         let relpath = normpath(convpath(path), self);
         let relative_path = relpath.to_str().unwrap();
         let full_path = format!("{}{}", LIND_ROOT, relative_path);
-        println!("stat full_path: {}", full_path);
+        // println!("stat full_path: {}", full_path);
         let c_path = CString::new(full_path).unwrap();
 
         // Declare statbuf by ourselves 
@@ -202,7 +202,7 @@ impl Cage {
         }
 
         let mode = libc_statbuf.st_mode as u32;
-        println!("st_mode: {}, ISDIR: {}", mode, mode & (libc::S_IFDIR as u32));
+        // println!("st_mode: {}, ISDIR: {}", mode, mode & (libc::S_IFDIR as u32));
         
         rposix_statbuf.st_blksize = libc_statbuf.st_blksize as i32;
         rposix_statbuf.st_blocks = libc_statbuf.st_blocks as u32;
@@ -342,7 +342,7 @@ impl Cage {
     *   - -1, fail 
     */
     pub fn read_syscall(&self, virtual_fd: i32, readbuf: *mut u8, count: usize) -> i32 {
-        println!("read_syscall on {}", virtual_fd);
+        // println!("read_syscall on {}", virtual_fd);
         let wrappedvfd = fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64);
         if wrappedvfd.is_err() {
             return syscall_error(Errno::EBADF, "read", "Bad File Descriptor");
@@ -673,7 +673,7 @@ impl Cage {
        On error, -1 is returned 
     */
     pub fn fcntl_syscall(&self, virtual_fd: i32, cmd: i32, arg: i32) -> i32 {
-        println!("fcntl: fd={}, cmd={}, arg={}", virtual_fd, cmd, arg);
+        // println!("fcntl: fd={}, cmd={}, arg={}", virtual_fd, cmd, arg);
         match (cmd, arg) {
             (F_GETOWN, ..) => {
                 // 
@@ -842,7 +842,7 @@ impl Cage {
     }
 
     pub fn sbrk(&self, brk: u32) -> i32 {
-        println!("sbrk {}", brk);
+        // println!("sbrk {}", brk);
         let mut vmmap = self.vmmap.write();
         let heap = vmmap.find_page(0).unwrap().clone();
 
@@ -853,13 +853,13 @@ impl Cage {
         let brk_page = ((brk + 65536 - 1) / 65536) * 16;
 
         let heap_size = heap.npages;
-        println!("heap_size: {}, brk_page: {}", heap_size, brk_page);
+        // println!("heap_size: {}, brk_page: {}", heap_size, brk_page);
         vmmap.add_entry_with_override(0, heap_size + brk_page, heap.prot, heap.maxprot, heap.flags, heap.backing, heap.file_offset, heap.file_size, heap.cage_id);
         
         let usr_heap_base = (heap_size * PAGESIZE) as i32;
         let sys_heap_base = vmmap.user_to_sys(usr_heap_base)as *mut u8;
 
-        println!("usr base: {}, length: {}", usr_heap_base, brk_page * PAGESIZE);
+        // println!("usr base: {}, length: {}", usr_heap_base, brk_page * PAGESIZE);
 
         drop(vmmap);
 

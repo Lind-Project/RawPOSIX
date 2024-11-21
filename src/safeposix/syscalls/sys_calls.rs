@@ -511,11 +511,11 @@ impl Cage {
         }
 
         if let Some(cage) = interface::cagetable_getref_opt(cage_id as u64) {
-            interface::lind_threadkill(
-                cage.main_threadid
-                    .load(interface::RustAtomicOrdering::Relaxed),
-                sig,
-            );
+            // interface::lind_threadkill(
+            //     cage.main_threadid
+            //         .load(interface::RustAtomicOrdering::Relaxed),
+            //     sig,
+            // );
             return 0;
         } else {
             return syscall_error(Errno::ESRCH, "kill", "Target cage does not exist");
