@@ -854,7 +854,7 @@ impl Cage {
 
         let heap_size = heap.npages;
         // println!("heap_size: {}, brk_page: {}", heap_size, brk_page);
-        vmmap.add_entry_with_override(0, heap_size + brk_page, heap.prot, heap.maxprot, heap.flags, heap.backing, heap.file_offset, heap.file_size, heap.cage_id);
+        vmmap.add_entry_with_overwrite(0, heap_size + brk_page, heap.prot, heap.maxprot, heap.flags, heap.backing, heap.file_offset, heap.file_size, heap.cage_id);
         
         let usr_heap_base = (heap_size * PAGESIZE) as i32;
         let sys_heap_base = vmmap.user_to_sys(usr_heap_base)as *mut u8;
