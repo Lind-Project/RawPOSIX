@@ -2,6 +2,8 @@
 use crate::interface;
 use crate::interface::errnos::{syscall_error, Errno};
 
+use std::ffi::CStr;
+use std::str::Utf8Error;
 use std::io::{Read, Write};
 use std::io;
 use std::ptr::null;
@@ -59,14 +61,14 @@ pub struct Rlimit {
     pub rlim_max: u64,
 }
 
-#[derive(Eq, PartialEq, Default, Copy, Clone)]
+#[derive(Eq, PartialEq, Default, Copy, Clone, Debug)]
 #[repr(C)]
 pub struct PipeArray {
     pub readfd: i32,
     pub writefd: i32,
 }
 
-#[derive(Eq, PartialEq, Default, Copy, Clone)]
+#[derive(Eq, PartialEq, Default, Copy, Clone, Debug)]
 #[repr(C)]
 pub struct SockPair {
     pub sock1: i32,
@@ -162,45 +164,6 @@ pub struct SigactionStruct {
     pub sa_flags: i32,
 }
 
-//redefining the Arg union to maintain the flow of the program
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub union Arg {
-    pub dispatch_int: i32,
-    pub dispatch_uint: u32,
-    pub dispatch_ulong: u64,
-    pub dispatch_long: i64,
-    pub dispatch_usize: usize, //For types not specified to be a given length, but often set to word size (i.e. size_t)
-    pub dispatch_isize: isize, //For types not specified to be a given length, but often set to word size (i.e. off_t)
-    pub dispatch_cbuf: *const u8, //Typically corresponds to an immutable void* pointer as in write
-    pub dispatch_mutcbuf: *mut u8, //Typically corresponds to a mutable void* pointer as in read
-    pub dispatch_cstr: *const i8, //Typically corresponds to a passed in string of type char*, as in open
-    pub dispatch_cstrarr: *const *const i8, //Typically corresponds to a passed in string array of type char* const[] as in execve
-    pub dispatch_statdatastruct: *mut StatData,
-    pub dispatch_fsdatastruct: *mut FSData,
-    pub dispatch_shmidstruct: *mut ShmidsStruct,
-    pub dispatch_constsockaddrstruct: *const SockaddrDummy,
-    pub dispatch_sockaddrstruct: *mut SockaddrDummy,
-    pub dispatch_socklen_t_ptr: *mut u32,
-    pub dispatch_intptr: *mut i32,
-    pub dispatch_pollstructarray: *mut PollStruct,
-    pub dispatch_epollevent: *mut EpollEvent,
-    pub dispatch_structtimeval: *mut timeval,
-    pub dispatch_structtimespec_lind: *mut TimeSpec,
-    pub dispatch_structtimespec: *mut timespec,
-    pub dispatch_pipearray: *mut PipeArray,
-    pub dispatch_sockpair: *mut SockPair,
-    pub dispatch_ioctlptrunion: *mut u8,
-    pub dispatch_sigactionstruct: *mut SigactionStruct,
-    pub dispatch_constsigactionstruct: *const SigactionStruct,
-    pub dispatch_sigsett: *mut SigsetType,
-    pub dispatch_constsigsett: *const SigsetType,
-    pub dispatch_structitimerval: *mut ITimerVal,
-    pub dispatch_conststructitimerval: *const ITimerVal,
-    pub dispatch_fdset: *mut libc::fd_set,
-    pub dispatch_constiovecstruct: *const interface::IovecStruct,
-}
-
 use std::mem::size_of;
 
 // Represents a Dirent struct without the string, as rust has no flexible array member support
@@ -213,14 +176,21 @@ pub struct ClippedDirent {
 
 pub const CLIPPED_DIRENT_SIZE: u32 = size_of::<interface::ClippedDirent>() as u32;
 
-pub fn get_int(union_argument: Arg) -> Result<i32, i32> {
-    let data = unsafe { union_argument.dispatch_int };
-    let mut type_checker = Arg { dispatch_long: 0 };
-    //turn part of the union into 0xffffffff, but, Rust
-    //does not like just using the hex value so we are forced to use
-    //a value of -1
-    type_checker.dispatch_int = -1;
-    if (unsafe { union_argument.dispatch_long } & !unsafe { type_checker.dispatch_long }) == 0 {
+/*
+This file provides essential functions for handling and validating `u64` inputs, 
+converting them to various system-specific data types needed in system calls. 
+It includes utilities for transforming raw pointers to typed structures, such as integer,
+buffer, and string pointers, as well as complex structures like polling, signal handling, 
+timing, and socket-related types. Each function ensures safe and correct usage by performing 
+null checks, boundary validations, and type casting, returning either a valid reference 
+or an error if data is invalid. This design promotes secure, reliable access to memory and
+ resources in a low-level systems environment.
+*/
+pub fn get_int(generic_argument: u64) -> Result<i32, i32> {
+    let data = generic_argument as i32;
+    let type_checker = (!0xffffffff) as u64;
+
+    if (generic_argument & (!type_checker)) == 0 {
         return Ok(data);
     }
     return Err(syscall_error(
@@ -230,11 +200,11 @@ pub fn get_int(union_argument: Arg) -> Result<i32, i32> {
     ));
 }
 
-pub fn get_uint(union_argument: Arg) -> Result<u32, i32> {
-    let data = unsafe { union_argument.dispatch_uint };
-    let mut type_checker = Arg { dispatch_ulong: 0 };
-    type_checker.dispatch_uint = 0xffffffff;
-    if (unsafe { union_argument.dispatch_ulong } & !unsafe { type_checker.dispatch_ulong }) == 0 {
+pub fn get_uint(generic_argument: u64) -> Result<u32, i32> {
+    let data = generic_argument as u32;
+    let type_checker = (!0xffffffff) as u64;
+
+    if (generic_argument & (!type_checker)) == 0 {
         return Ok(data);
     }
     return Err(syscall_error(
@@ -244,26 +214,26 @@ pub fn get_uint(union_argument: Arg) -> Result<u32, i32> {
     ));
 }
 
-pub fn get_long(union_argument: Arg) -> Result<i64, i32> {
-    return Ok(unsafe { union_argument.dispatch_long }); //this should not return error
+pub fn get_long(generic_argument: u64) -> Result<i64, i32> {
+    return Ok(generic_argument as i64); //this should not return error
 }
 
-pub fn get_ulong(union_argument: Arg) -> Result<u64, i32> {
-    return Ok(unsafe { union_argument.dispatch_ulong }); //this should not return error
+pub fn get_ulong(generic_argument: u64) -> Result<u64, i32> {
+    return Ok(generic_argument); //this should not return error
 }
 
-pub fn get_isize(union_argument: Arg) -> Result<isize, i32> {
+pub fn get_isize(generic_argument: u64) -> Result<isize, i32> {
     // also should not return error
-    return Ok(unsafe { union_argument.dispatch_isize });
+    return Ok(generic_argument as isize);
 }
 
-pub fn get_usize(union_argument: Arg) -> Result<usize, i32> {
+pub fn get_usize(generic_argument: u64) -> Result<usize, i32> {
     //should not return an error
-    return Ok(unsafe { union_argument.dispatch_usize });
+    return Ok(generic_argument as usize);
 }
 
-pub fn get_cbuf(union_argument: Arg) -> Result<*const u8, i32> {
-    let data = unsafe { union_argument.dispatch_cbuf };
+pub fn get_cbuf(generic_argument: u64) -> Result<*const u8, i32> {
+    let data = generic_argument as *const u8;
     if !data.is_null() {
         return Ok(data);
     }
@@ -274,8 +244,8 @@ pub fn get_cbuf(union_argument: Arg) -> Result<*const u8, i32> {
     ));
 }
 
-pub fn get_mutcbuf(union_argument: Arg) -> Result<*mut u8, i32> {
-    let data = unsafe { union_argument.dispatch_mutcbuf };
+pub fn get_mutcbuf(generic_argument: u64) -> Result<*mut u8, i32> {
+    let data = generic_argument as *mut u8;
     if !data.is_null() {
         return Ok(data);
     }
@@ -287,16 +257,17 @@ pub fn get_mutcbuf(union_argument: Arg) -> Result<*mut u8, i32> {
 }
 
 // for the case where the buffer pointer being Null is normal
-pub fn get_mutcbuf_null(union_argument: Arg) -> Result<Option<*mut u8>, i32> {
-    let data = unsafe { union_argument.dispatch_mutcbuf };
+pub fn get_mutcbuf_null(generic_argument: u64) -> Result<Option<*mut u8>, i32> {
+    let data = generic_argument as *mut u8;
     if !data.is_null() {
         return Ok(Some(data));
     }
     return Ok(None);
 }
 
-pub fn get_fdset(union_argument: Arg) -> Result<Option<&'static mut fd_set>, i32> {
-    let data: *mut libc::fd_set = unsafe { union_argument.dispatch_fdset };
+
+pub fn get_fdset(generic_argument: u64) -> Result<Option<&'static mut fd_set>, i32> {
+    let data = generic_argument as *mut libc::fd_set;
     if !data.is_null() {
         let internal_fds = unsafe { &mut *(data as *mut fd_set) };
         return Ok(Some(internal_fds));
@@ -304,11 +275,11 @@ pub fn get_fdset(union_argument: Arg) -> Result<Option<&'static mut fd_set>, i32
     return Ok(None);
 }
 
-pub fn get_cstr<'a>(union_argument: Arg) -> Result<&'a str, i32> {
+pub fn get_cstr<'a>(generic_argument: u64) -> Result<&'a str, i32> {
     //first we check that the pointer is not null
     //and then we check so that we can get data from the memory
 
-    let pointer = unsafe { union_argument.dispatch_cstr };
+    let pointer = generic_argument as *const i8;
     if !pointer.is_null() {
         if let Ok(ret_data) = unsafe { interface::charstar_to_ruststr(pointer) } {
             return Ok(ret_data);
@@ -327,13 +298,13 @@ pub fn get_cstr<'a>(union_argument: Arg) -> Result<&'a str, i32> {
     ));
 }
 
-pub fn get_cstrarr<'a>(union_argument: Arg) -> Result<Vec<&'a str>, i32> {
+pub fn get_cstrarr<'a>(generic_argument: u64) -> Result<Vec<&'a str>, i32> {
     //iterate though the pointers in a function and:
     //  1: check that the pointer is not null
     //  2: push the data from that pointer onto the vector being returned
     //once we encounter a null pointer, we know that we have either hit the end of the array or another null pointer in the memory
 
-    let mut pointer = unsafe { union_argument.dispatch_cstrarr };
+    let mut pointer = generic_argument as *const *const i8;
     let mut data_vector: Vec<&str> = Vec::new();
 
     if !pointer.is_null() {
@@ -358,8 +329,8 @@ pub fn get_cstrarr<'a>(union_argument: Arg) -> Result<Vec<&'a str>, i32> {
     ));
 }
 
-pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut StatData, i32> {
-    let pointer = unsafe { union_argument.dispatch_statdatastruct };
+pub fn get_statdatastruct<'a>(generic_argument: u64) -> Result<&'a mut StatData, i32> {
+    let pointer = generic_argument as *mut StatData;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -370,8 +341,8 @@ pub fn get_statdatastruct<'a>(union_argument: Arg) -> Result<&'a mut StatData, i
     ));
 }
 
-pub fn get_fsdatastruct<'a>(union_argument: Arg) -> Result<&'a mut FSData, i32> {
-    let pointer = unsafe { union_argument.dispatch_fsdatastruct };
+pub fn get_fsdatastruct<'a>(generic_argument: u64) -> Result<&'a mut FSData, i32> {
+    let pointer = generic_argument as *mut FSData;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -382,8 +353,8 @@ pub fn get_fsdatastruct<'a>(union_argument: Arg) -> Result<&'a mut FSData, i32> 
     ));
 }
 
-pub fn get_shmidstruct<'a>(union_argument: Arg) -> Result<&'a mut ShmidsStruct, i32> {
-    let pointer = unsafe { union_argument.dispatch_shmidstruct };
+pub fn get_shmidstruct<'a>(generic_argument: u64) -> Result<&'a mut ShmidsStruct, i32> {
+    let pointer = generic_argument as *mut ShmidsStruct;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -394,8 +365,8 @@ pub fn get_shmidstruct<'a>(union_argument: Arg) -> Result<&'a mut ShmidsStruct, 
     ));
 }
 
-pub fn get_ioctlptrunion<'a>(union_argument: Arg) -> Result<&'a mut u8, i32> {
-    let pointer = unsafe { union_argument.dispatch_ioctlptrunion };
+pub fn get_ioctlptrunion<'a>(generic_argument: u64) -> Result<&'a mut u8, i32> {
+    let pointer = generic_argument as *mut u8;
     if !pointer.is_null() {
         return Ok(unsafe {
             &mut *pointer
@@ -408,8 +379,8 @@ pub fn get_ioctlptrunion<'a>(union_argument: Arg) -> Result<&'a mut u8, i32> {
     ));
 }
 
-pub fn get_pipearray<'a>(union_argument: Arg) -> Result<&'a mut PipeArray, i32> {
-    let pointer = unsafe { union_argument.dispatch_pipearray };
+pub fn get_pipearray<'a>(generic_argument: u64) -> Result<&'a mut PipeArray, i32> {
+    let pointer = generic_argument as *mut PipeArray;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -420,8 +391,8 @@ pub fn get_pipearray<'a>(union_argument: Arg) -> Result<&'a mut PipeArray, i32> 
     ));
 }
 
-pub fn get_sockpair<'a>(union_argument: Arg) -> Result<&'a mut SockPair, i32> {
-    let pointer = unsafe { union_argument.dispatch_sockpair };
+pub fn get_sockpair<'a>(generic_argument: u64) -> Result<&'a mut SockPair, i32> {
+    let pointer = generic_argument as *mut SockPair;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     }
@@ -432,8 +403,8 @@ pub fn get_sockpair<'a>(union_argument: Arg) -> Result<&'a mut SockPair, i32> {
     ));
 }
 
-pub fn get_constsockaddr<'a>(union_argument: Arg) -> Result<&'a SockaddrDummy, i32> {
-    let pointer = unsafe { union_argument.dispatch_constsockaddrstruct };
+pub fn get_constsockaddr<'a>(generic_argument: u64) -> Result<&'a SockaddrDummy, i32> {
+    let pointer = generic_argument as *const SockaddrDummy;
     if !pointer.is_null() {
         return Ok(unsafe { & *pointer });
     }
@@ -444,8 +415,8 @@ pub fn get_constsockaddr<'a>(union_argument: Arg) -> Result<&'a SockaddrDummy, i
     ));
 }
 
-pub fn get_sockaddr(union_argument: Arg, addrlen: u32) -> Result<interface::GenSockaddr, i32> {
-    let pointer = unsafe { union_argument.dispatch_constsockaddrstruct };
+pub fn get_sockaddr(generic_argument: u64, addrlen: u32) -> Result<interface::GenSockaddr, i32> {
+    let pointer = generic_argument as *const SockaddrDummy;
     if !pointer.is_null() {
         let tmpsock = unsafe { &*pointer };
         match tmpsock.sa_family {
@@ -487,7 +458,7 @@ pub fn get_sockaddr(union_argument: Arg, addrlen: u32) -> Result<interface::GenS
                 let v6_ptr = pointer as *const interface::SockaddrV6;
                 return Ok(interface::GenSockaddr::V6(unsafe { *v6_ptr }));
             }
-            _ => {
+            val => {
                 return Err(syscall_error(
                     Errno::EOPNOTSUPP,
                     "dispatcher",
@@ -503,9 +474,9 @@ pub fn get_sockaddr(union_argument: Arg, addrlen: u32) -> Result<interface::GenS
     ));
 }
 
-pub fn set_gensockaddr(union_argument: Arg, len_argument: Arg) -> Result<interface::GenSockaddr, i32> {
-    let received = unsafe { union_argument.dispatch_sockaddrstruct };
-    let received_addrlen = unsafe { len_argument.dispatch_socklen_t_ptr } as u32;
+pub fn set_gensockaddr(generic_argument: u64, generic_argument1: u64) -> Result<interface::GenSockaddr, i32> {
+    let received = generic_argument as *mut SockaddrDummy;
+    let received_addrlen = (generic_argument1 as *mut u32) as u32;
     let tmpsock = unsafe { &*received };
     match tmpsock.sa_family {
         /*AF_UNIX*/
@@ -553,9 +524,9 @@ pub fn set_gensockaddr(union_argument: Arg, len_argument: Arg) -> Result<interfa
     }
 }
 
-pub fn copy_out_sockaddr(union_argument: Arg, len_argument: Arg, gensock: interface::GenSockaddr) {
-    let copyoutaddr = unsafe { union_argument.dispatch_sockaddrstruct } as *mut u8;
-    let addrlen = unsafe { len_argument.dispatch_socklen_t_ptr };
+pub fn copy_out_sockaddr(generic_argument: u64, generic_argument1: u64, gensock: interface::GenSockaddr) {
+    let copyoutaddr = (generic_argument as *mut SockaddrDummy) as *mut u8;
+    let addrlen = generic_argument1 as *mut u32;
     assert!(!copyoutaddr.is_null());
     assert!(!addrlen.is_null());
     let initaddrlen = unsafe { *addrlen };
@@ -581,6 +552,7 @@ pub fn copy_out_sockaddr(union_argument: Arg, len_argument: Arg, gensock: interf
             let v4len = size_of::<interface::SockaddrV4>() as u32;
             
             let fullcopylen = interface::rust_min(initaddrlen, v4len);
+          
             unsafe {
                 std::ptr::copy(
                     (v4a) as *mut interface::SockaddrV4 as *mut u8,
@@ -612,10 +584,10 @@ pub fn copy_out_sockaddr(union_argument: Arg, len_argument: Arg, gensock: interf
 }
 
 pub fn get_pollstruct_slice<'a>(
-    union_argument: Arg,
+    generic_argument: u64,
     nfds: usize,
 ) -> Result<&'a mut [PollStruct], i32> {
-    let pollstructptr = unsafe { union_argument.dispatch_pollstructarray };
+    let pollstructptr = generic_argument as *mut PollStruct;
     if !pollstructptr.is_null() {
         return Ok(unsafe { std::slice::from_raw_parts_mut(pollstructptr, nfds) });
     }
@@ -627,10 +599,10 @@ pub fn get_pollstruct_slice<'a>(
 }
 
 pub fn get_epollevent_slice<'a>(
-    union_argument: Arg,
+    generic_argument: u64,
     nfds: i32,
 ) -> Result<&'a mut [EpollEvent], i32> {
-    let epolleventptr = unsafe { union_argument.dispatch_epollevent };
+    let epolleventptr = generic_argument as *mut EpollEvent;
     if !epolleventptr.is_null() {
         return Ok(unsafe { std::slice::from_raw_parts_mut(epolleventptr, nfds as usize) });
     }
@@ -641,8 +613,8 @@ pub fn get_epollevent_slice<'a>(
     ));
 }
 
-pub fn get_slice_from_string<'a>(union_argument: Arg, len: usize) -> Result<&'a mut [u8], i32> {
-    let bufptr = unsafe { union_argument.dispatch_mutcbuf };
+pub fn get_slice_from_string<'a>(generic_argument: u64, len: usize) -> Result<&'a mut [u8], i32> {
+    let bufptr = generic_argument as *mut u8;
     if bufptr.is_null() {
         return Ok(unsafe { std::slice::from_raw_parts_mut(bufptr, len as usize) });
     }
@@ -653,8 +625,8 @@ pub fn get_slice_from_string<'a>(union_argument: Arg, len: usize) -> Result<&'a 
     ));
 }
 
-pub fn get_epollevent<'a>(union_argument: Arg) -> Result<&'a mut EpollEvent, i32> {
-    let epolleventptr = unsafe { union_argument.dispatch_epollevent };
+pub fn get_epollevent<'a>(generic_argument: u64) -> Result<&'a mut EpollEvent, i32> {
+    let epolleventptr = generic_argument as *mut EpollEvent;
     if !epolleventptr.is_null() {
         return Ok(unsafe { &mut *epolleventptr });
     }
@@ -665,8 +637,8 @@ pub fn get_epollevent<'a>(union_argument: Arg) -> Result<&'a mut EpollEvent, i32
     ));
 }
 
-pub fn get_socklen_t_ptr(union_argument: Arg) -> Result<u32, i32> {
-    let socklenptr = unsafe { union_argument.dispatch_socklen_t_ptr };
+pub fn get_socklen_t_ptr(generic_argument: u64) -> Result<u32, i32> {
+    let socklenptr = generic_argument as *mut u32;
     if !socklenptr.is_null() {
         return Ok(unsafe { *socklenptr });
     }
@@ -678,18 +650,18 @@ pub fn get_socklen_t_ptr(union_argument: Arg) -> Result<u32, i32> {
 }
 
 //arg checked for nullity beforehand
-pub fn get_int_from_intptr(union_argument: Arg) -> i32 {
-    return unsafe { *union_argument.dispatch_intptr };
+pub fn get_int_from_intptr(generic_argument: u64) -> i32 {
+    return unsafe { *(generic_argument as *mut i32)};
 }
 
-pub fn copy_out_intptr(union_argument: Arg, intval: i32) {
+pub fn copy_out_intptr(generic_argument: u64, intval: i32) {
     unsafe {
-        *union_argument.dispatch_intptr = intval;
+        *(generic_argument as *mut i32) = intval;
     }
 }
 
-pub fn duration_fromtimeval(union_argument: Arg) -> Result<Option<interface::RustDuration>, i32> {
-    let pointer = unsafe { union_argument.dispatch_structtimeval };
+pub fn duration_fromtimeval(generic_argument: u64) -> Result<Option<interface::RustDuration>, i32> {
+    let pointer = generic_argument as *mut timeval;
     if !pointer.is_null() {
         let times = unsafe { &mut *pointer };
         return Ok(Some(interface::RustDuration::new(
@@ -701,8 +673,8 @@ pub fn duration_fromtimeval(union_argument: Arg) -> Result<Option<interface::Rus
     }
 }
 
-pub fn get_timerval<'a>(union_argument: Arg) -> Result<&'a mut timeval, i32> {
-    let pointer = unsafe { union_argument.dispatch_structtimeval };
+pub fn get_timerval<'a>(generic_argument: u64) -> Result<&'a mut timeval, i32> {
+    let pointer = generic_argument as *mut timeval;
     if !pointer.is_null() {
         return Ok(unsafe { &mut *pointer });
     } 
@@ -713,8 +685,8 @@ pub fn get_timerval<'a>(union_argument: Arg) -> Result<&'a mut timeval, i32> {
     ));
 }
 
-pub fn get_itimerval<'a>(union_argument: Arg) -> Result<Option<&'a mut ITimerVal>, i32> {
-    let pointer = unsafe { union_argument.dispatch_structitimerval };
+pub fn get_itimerval<'a>(generic_argument: u64) -> Result<Option<&'a mut ITimerVal>, i32> {
+    let pointer = generic_argument as *mut ITimerVal;
     if !pointer.is_null() {
         Ok(Some(unsafe { &mut *pointer }))
     } else {
@@ -722,8 +694,8 @@ pub fn get_itimerval<'a>(union_argument: Arg) -> Result<Option<&'a mut ITimerVal
     }
 }
 
-pub fn get_constitimerval<'a>(union_argument: Arg) -> Result<Option<&'a ITimerVal>, i32> {
-    let pointer = unsafe { union_argument.dispatch_conststructitimerval };
+pub fn get_constitimerval<'a>(generic_argument: u64) -> Result<Option<&'a ITimerVal>, i32> {
+    let pointer = generic_argument as *const ITimerVal;
     if !pointer.is_null() {
         Ok(Some(unsafe { &*pointer }))
     } else {
@@ -731,8 +703,8 @@ pub fn get_constitimerval<'a>(union_argument: Arg) -> Result<Option<&'a ITimerVa
     }
 }
 
-pub fn duration_fromtimespec(union_argument: Arg) -> Result<interface::RustDuration, i32> {
-    let pointer = unsafe { union_argument.dispatch_structtimespec_lind };
+pub fn duration_fromtimespec(generic_argument: u64) -> Result<interface::RustDuration, i32> {
+    let pointer = generic_argument as *mut TimeSpec;
     if !pointer.is_null() {
         let times = unsafe { &mut *pointer };
         if times.tv_nsec < 0 || times.tv_nsec >= 1000000000 {
@@ -755,8 +727,8 @@ pub fn duration_fromtimespec(union_argument: Arg) -> Result<interface::RustDurat
     }
 }
 
-pub fn get_timespec<'a>(union_argument: Arg) -> Result<&'a timespec, i32> {
-    let pointer = unsafe { union_argument.dispatch_structtimespec };
+pub fn get_timespec<'a>(generic_argument: u64) -> Result<&'a timespec, i32> {
+    let pointer = generic_argument as *mut timespec;
     if !pointer.is_null() {
         return Ok( unsafe {
             &*pointer
@@ -770,9 +742,9 @@ pub fn get_timespec<'a>(union_argument: Arg) -> Result<&'a timespec, i32> {
 }
 
 pub fn get_duration_from_millis(
-    union_argument: Arg,
+    generic_argument: u64,
 ) -> Result<Option<interface::RustDuration>, i32> {
-    let posstimemillis = get_int(union_argument);
+    let posstimemillis = get_int(generic_argument);
     match posstimemillis {
         Ok(timemillis) => {
             if timemillis >= 0 {
@@ -787,14 +759,12 @@ pub fn get_duration_from_millis(
     }
 }
 
-pub fn arg_nullity(union_argument: &Arg) -> bool {
-    unsafe { union_argument.dispatch_cbuf }.is_null()
+pub fn arg_nullity(generic_argument: u64) -> bool {
+    (generic_argument as *const u8).is_null()
 }
 
-pub fn get_sigactionstruct<'a>(
-    union_argument: Arg,
-) -> Result<Option<&'a mut SigactionStruct>, i32> {
-    let pointer = unsafe { union_argument.dispatch_sigactionstruct };
+pub fn get_sigactionstruct<'a>(generic_argument: u64) -> Result<Option<&'a mut SigactionStruct>, i32> {
+    let pointer = generic_argument as *mut SigactionStruct;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &mut *pointer }))
@@ -803,10 +773,8 @@ pub fn get_sigactionstruct<'a>(
     }
 }
 
-pub fn get_constsigactionstruct<'a>(
-    union_argument: Arg,
-) -> Result<Option<&'a SigactionStruct>, i32> {
-    let pointer = unsafe { union_argument.dispatch_constsigactionstruct };
+pub fn get_constsigactionstruct<'a>(generic_argument: u64) -> Result<Option<&'a SigactionStruct>, i32> {
+    let pointer = generic_argument as *const SigactionStruct;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &*pointer }))
@@ -815,8 +783,8 @@ pub fn get_constsigactionstruct<'a>(
     }
 }
 
-pub fn get_sigsett<'a>(union_argument: Arg) -> Result<Option<&'a mut SigsetType>, i32> {
-    let pointer = unsafe { union_argument.dispatch_sigsett };
+pub fn get_sigsett<'a>(generic_argument: u64) -> Result<Option<&'a mut SigsetType>, i32> {
+    let pointer = generic_argument as *mut u64;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &mut *pointer }))
@@ -825,8 +793,8 @@ pub fn get_sigsett<'a>(union_argument: Arg) -> Result<Option<&'a mut SigsetType>
     }
 }
 
-pub fn get_constsigsett<'a>(union_argument: Arg) -> Result<Option<&'a SigsetType>, i32> {
-    let pointer = unsafe { union_argument.dispatch_constsigsett };
+pub fn get_constsigsett<'a>(generic_argument: u64) -> Result<Option<&'a SigsetType>, i32> {
+    let pointer = generic_argument as *const SigsetType;
 
     if !pointer.is_null() {
         Ok(Some(unsafe { &*pointer }))
@@ -835,8 +803,8 @@ pub fn get_constsigsett<'a>(union_argument: Arg) -> Result<Option<&'a SigsetType
     }
 }
 
-pub fn get_iovecstruct(union_argument: Arg) -> Result<*const interface::IovecStruct, i32> {
-    let data = unsafe { union_argument.dispatch_constiovecstruct };
+pub fn get_iovecstruct(generic_argument: u64) -> Result<*const interface::IovecStruct, i32> {
+    let data = generic_argument as *const interface::IovecStruct;
     if !data.is_null() {
         return Ok(data);
     }

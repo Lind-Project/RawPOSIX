@@ -1,6 +1,3 @@
-// // Author: Nicholas Renner
-// //
-
 use parking_lot::Mutex;
 use std::fs::{self, canonicalize, File, OpenOptions};
 use std::sync::Arc;
