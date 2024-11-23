@@ -1,4 +1,8 @@
-use super::vmmap_constants::*;
+use crate::constants::{
+    PROT_NONE, PROT_READ, PROT_WRITE, PROT_EXEC,
+    MAP_SHARED, MAP_PRIVATE, MAP_FIXED, MAP_ANONYMOUS,
+    MAP_FAILED
+};
 use std::io;
 use nodit::NoditMap;
 use nodit::{interval::ie, Interval};
