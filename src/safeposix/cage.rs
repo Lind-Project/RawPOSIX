@@ -23,12 +23,6 @@ pub use crate::interface::types::{
 
 use super::filesystem::normpath;
 
-// Remove these old imports since we're using the central constants module now
-// pub use super::syscalls::fs_constants::*;
-// pub use super::syscalls::net_constants::*;
-// pub use super::syscalls::sys_constants::*;
-// pub use super::vmmap_constants::*;
-
 pub use super::vmmap::*;
 pub use crate::interface::CAGE_TABLE;
 
