@@ -222,7 +222,7 @@ pub fn lind_syscall_api(
             let addr = arg1 as *mut u8;
             let len = arg2 as usize;
             
-            interface::munmap(cageid, addr, len)
+            interface::munmap_handler(cageid, addr, len)
         }
 
         MMAP_SYSCALL => {
@@ -233,7 +233,7 @@ pub fn lind_syscall_api(
             let mut fildes = arg5 as i32;
             let off = arg6 as i64;
             
-            interface::mmap(cageid, addr, len, prot, flags, fildes, off)
+            interface::mmap_handler(cageid, addr, len, prot, flags, fildes, off)
         }
 
         PREAD_SYSCALL => {
@@ -1008,8 +1008,8 @@ pub fn lind_syscall_api(
 
         SBRK_SYSCALL => {
             let brk = arg1 as u32;
-            interface::cagetable_getref(cageid)
-                .sbrk(brk)
+
+            interface::sbrk_handler(cageid, brk)
         }
 
         _ => -1, // Return -1 for unknown syscalls

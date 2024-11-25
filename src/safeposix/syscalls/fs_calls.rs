@@ -823,48 +823,6 @@ impl Cage {
         ret
     }
 
-    pub fn sbrk(&self, brk: u32) -> i32 {
-        let mut vmmap = self.vmmap.write();
-        let heap = vmmap.find_page(0).unwrap().clone();
-
-        if brk == 0 {
-            return (PAGESIZE * heap.npages) as i32;
-        }
-
-        let brk_page = ((brk + 65536 - 1) / 65536) * 16;
-
-        let heap_size = heap.npages;
-        vmmap.add_entry_with_overwrite(0, heap_size + brk_page, heap.prot, heap.maxprot, heap.flags, heap.backing, heap.file_offset, heap.file_size, heap.cage_id);
-        
-        let usr_heap_base = (heap_size * PAGESIZE) as i32;
-        let sys_heap_base = vmmap.user_to_sys(usr_heap_base)as *mut u8;
-
-        drop(vmmap);
-
-        // TODO: Currently we are not calling mmap to change prot here
-        // since this is handled within wasmtime. This will be changed
-        // later
-        // let ret = self.mmap_syscall(
-        //     sys_heap_base,
-        //     (brk_page * PAGESIZE) as usize,
-        //     heap.prot,
-        //     heap.flags | MAP_FIXED,
-        //     -1,
-        //     0
-        // );
-        //
-        // unsafe {
-        //     let val = *sys_heap_base.add(65);
-        //     println!("val: {}", val);
-        // }
-        //
-        // if ret < 0 {
-        //     panic!("sbrk mmap failed");
-        // }
-
-        (PAGESIZE * heap.npages) as i32
-    }
-
     //------------------------------------FLOCK SYSCALL------------------------------------
     /*
     *   Get the kernel fd with provided virtual fd first

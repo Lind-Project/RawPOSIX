@@ -29,22 +29,26 @@ pub fn fork_vmmap(parent_vmmap: &Vmmap, child_vmmap: &Vmmap) {
         let child_st = child_vmmap.user_to_sys(addr_st);
         if entry.flags & (MAP_SHARED as i32) > 0 {
             // for shared memory, we are using mremap to fork shared memory
+            // See "man 2 mremap" for description of what MREMAP_MAYMOVE does with old_size=0
+            // when old_address points to a shared mapping
             let result = unsafe { libc::mremap(parent_st as *mut libc::c_void, 0, addr_len, libc::MREMAP_MAYMOVE | libc::MREMAP_FIXED, child_st as *mut libc::c_void) };
         } else {
-            // temporarily enable write on child's memory region to write parent data
-            unsafe { libc::mprotect(child_st as *mut libc::c_void, addr_len, PROT_READ | PROT_WRITE) };
+            unsafe {
+                // temporarily enable write on child's memory region to write parent data
+                libc::mprotect(child_st as *mut libc::c_void, addr_len, PROT_READ | PROT_WRITE);
 
-            // write parent data
-            // TODO: replace copy_nonoverlapping with writev for potential performance boost
-            unsafe { std::ptr::copy_nonoverlapping(parent_st as *const u8, child_st as *mut u8, addr_len) };
+                // write parent data
+                // TODO: replace copy_nonoverlapping with writev for potential performance boost
+                std::ptr::copy_nonoverlapping(parent_st as *const u8, child_st as *mut u8, addr_len);
 
-            // revert child's memory region prot
-            unsafe { libc::mprotect(child_st as *mut libc::c_void, addr_len, entry.prot) };
+                // revert child's memory region prot
+                libc::mprotect(child_st as *mut libc::c_void, addr_len, entry.prot)
+            };
         }
     }
 }
 
-pub fn munmap(cageid: u64, addr: *mut u8, len: usize) -> i32 {
+pub fn munmap_handler(cageid: u64, addr: *mut u8, len: usize) -> i32 {
     let cage = cagetable_getref(cageid);
 
     // check if the provided address is multiple of pages
@@ -59,6 +63,8 @@ pub fn munmap(cageid: u64, addr: *mut u8, len: usize) -> i32 {
 
     let rounded_length = round_up_page(len as u64) as usize;
 
+    // we are replacing munmap with mmap because we do not want to really deallocate the memory region
+    // we just want to set the prot of the memory region back to PROT_NONE
     let result = cage.mmap_syscall(sysaddr as *mut u8, rounded_length, PROT_NONE, (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED) as i32, -1, 0);
     if result as usize != rounded_addr {
         panic!("MAP_FIXED not fixed");
@@ -71,7 +77,7 @@ pub fn munmap(cageid: u64, addr: *mut u8, len: usize) -> i32 {
     0
 }
 
-pub fn mmap(cageid: u64, addr: *mut u8, len: usize, mut prot: i32, mut flags: i32, mut fildes: i32, off: i64) -> i32 {
+pub fn mmap_handler(cageid: u64, addr: *mut u8, len: usize, mut prot: i32, mut flags: i32, mut fildes: i32, off: i64) -> i32 {
     let cage = cagetable_getref(cageid);
 
     // only these four flags are allowed
@@ -167,4 +173,48 @@ pub fn mmap(cageid: u64, addr: *mut u8, len: usize, mut prot: i32, mut flags: i3
     }
 
     useraddr
+}
+
+pub fn sbrk_handler(cageid: u64, brk: u32) -> i32 {
+    let cage = cagetable_getref(cageid);
+
+    let mut vmmap = cage.vmmap.write();
+    let heap = vmmap.find_page(0).unwrap().clone();
+
+    if brk == 0 {
+        return (PAGESIZE * heap.npages) as i32;
+    }
+
+    let brk_page = ((brk + 65536 - 1) / 65536) * 16;
+
+    let heap_size = heap.npages;
+    vmmap.add_entry_with_overwrite(0, heap_size + brk_page, heap.prot, heap.maxprot, heap.flags, heap.backing, heap.file_offset, heap.file_size, heap.cage_id);
+    
+    let usr_heap_base = (heap_size * PAGESIZE) as i32;
+    let sys_heap_base = vmmap.user_to_sys(usr_heap_base)as *mut u8;
+
+    drop(vmmap);
+
+    // TODO: Currently we are not calling mmap to change prot here
+    // since this is handled within wasmtime. This will be changed
+    // later
+    // let ret = cage.mmap_syscall(
+    //     sys_heap_base,
+    //     (brk_page * PAGESIZE) as usize,
+    //     heap.prot,
+    //     heap.flags | MAP_FIXED,
+    //     -1,
+    //     0
+    // );
+    //
+    // unsafe {
+    //     let val = *sys_heap_base.add(65);
+    //     println!("val: {}", val);
+    // }
+    //
+    // if ret < 0 {
+    //     panic!("sbrk mmap failed");
+    // }
+
+    (PAGESIZE * heap.npages) as i32
 }
