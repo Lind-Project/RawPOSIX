@@ -63,19 +63,26 @@ impl VmmapEntry {
         };
     }
 
-    // Placeholder method to get maximum protection (currrently incomplete)
-    fn get_max_prot(&self, cage_id: u64, FileDescriptor(u64)) -> i32 {
-        let flags = PROT_NONE;
+    // get maximum protection for file based mappings
+    // this is effectively whatever mode the file was opened with
+    // we need this because we shouldnt be able to change filed backed mappings 
+    // to have protections exceeding that of the file
+    fn get_max_prot(&self, cage_id: u64, virtual_fd: u64 -> i32 {
 
-        flags
+        let wrappedvfd = fdtables::translate_virtual_fd(cage_id, virtual_fd as u64);
+        if wrappedvfd.is_err() {
+            return syscall_error(Errno::EBADF, "fstat", "Bad File Descriptor");
+        }
+        let vfd = wrappedvfd.unwrap();
+
+        // Declare statbuf by ourselves 
+        let mut libc_statbuf: stat = unsafe { std::mem::zeroed() };
+        let libcret = unsafe {
+            libc::fstat(vfd.underfd as i32, &mut libc_statbuf)
+        };
+
+        libc_statbuf.mode as i32
     }
-
-
-// Placeholder method to check file descriptor protection (currently does nothing)
-    fn check_fd_protection(&self, cage_id: i32) {
-        let _ = cage_id;
-    } // will call the microvisor, need to pass fd
-      // number if only its files backed and returns flags of fd
 }
 
 // VmmapOps trait provides an interface that can be shared by different virtual memory management implementations, 
