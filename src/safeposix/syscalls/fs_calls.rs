@@ -27,7 +27,14 @@ use std::ptr;
 use std::mem;
 
 use crate::fdtables;
-
+use crate::safeposix::cage::Cage;
+use libc::{
+    PROT_READ, PROT_WRITE,  // Memory protection flags
+    O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, O_TRUNC,  // File open flags
+    MAP_SHARED, MAP_PRIVATE,  // Memory mapping flags
+    SEEK_SET, SEEK_CUR, SEEK_END,  // Seek constants
+    S_IRWXU, S_IRWXG, S_IRWXO,  // Permission flags (user, group, others)
+};
 static LIND_ROOT: &str = "/home/lind/lind_project/src/safeposix-rust/tmp";
 
 const FDKIND_KERNEL: u32 = 0;

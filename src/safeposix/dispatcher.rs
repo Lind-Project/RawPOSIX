@@ -1131,7 +1131,7 @@ pub fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(0),
-        vmmap: interface::RustLock::new(Vmmap::new()),
+        vmmap: interface::RustLock::new(Vmmap::new()) // Initialize empty virtual memory map for new process
     };
 
     interface::cagetable_insert(0, utilcage);
@@ -1171,7 +1171,7 @@ pub fn lindrustinit(verbosity: isize) {
         pendingsigset: interface::RustHashMap::new(),
         main_threadid: interface::RustAtomicU64::new(0),
         interval_timer: interface::IntervalTimer::new(1),
-        vmmap: interface::RustLock::new(Vmmap::new()),
+        vmmap: interface::RustLock::new(Vmmap::new()) // Initialize empty virtual memory map for new process
     };
     interface::cagetable_insert(1, initcage);
     fdtables::init_empty_cage(1);

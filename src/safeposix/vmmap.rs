@@ -126,12 +126,17 @@ pub trait VmmapOps {
     ) -> Result<(), io::Error>;
 
     // Method to change protection of a memory region
+    // Modifies protection for existing pages in the region
+    // Should be able to handle splitting of existing pages when necessary
+    // Should maintain mapping consistency while changing protections
     fn change_prot(&mut self, page_num: u32, npages: u32, new_prot: i32);
 
     // Method to remove an entry from the memory map
     fn remove_entry(&mut self, page_num: u32, npages: u32) -> Result<(), io::Error>;
 
-    // Method to check if a mapping exists
+    // Method to check if requested pages exist with proper permissions
+    // NaCl code enforces PROT_READ when any protection exists
+    // Returns end page number if mapping is found and has proper permissions
     fn check_existing_mapping(&self, page_num: u32, npages: u32, prot: i32) -> bool;
 
     // Method to check address mapping
@@ -171,12 +176,16 @@ pub trait VmmapOps {
     ) -> impl DoubleEndedIterator<Item = (&Interval<u32>, &mut VmmapEntry)>;
 
     // Method to find space in the memory map
+    // Searches for a contiguous region of at least 'n' free pages
+    // Returns the interval of the free space
     fn find_space(&self, npages: u32) -> Option<Interval<u32>>;
 
     // Method to find space above a hint
     fn find_space_above_hint(&self, npages: u32, hint: u32) -> Option<Interval<u32>>;
 
-    // Method to find map space
+    // Method to find space for memory mappings with alignment requirements
+    // Rounds page numbers up to the nearest multiple of pages_per_map
+    // Returns the interval of the free space
     fn find_map_space(&self, num_pages: u32, pages_per_map: u32) -> Option<Interval<u32>>;
 
     // Method to find map space with a hint
@@ -229,8 +238,25 @@ impl Vmmap {
         (address as i64 - self.base_address.unwrap()) as i32
     }
 
+    // Visits each entry in the vmmap, applying a visitor function to each entry
+    // 
+    // The visitor function should be used to:
+    // - Validate memory map consistency
+    // - Gather statistics about memory usage
+    // - Perform operations across all entries
+    // - Support debugging and auditing features
     fn visit() {}
 
+
+    // Prints detailed debug information about the vmmap's current state
+    // 
+    // Should output information including:
+    // - Page ranges and sizes for each mapping
+    // - Protection flags (current and maximum)
+    // - Mapping flags
+    // - Backing store information (Anonymous, File, or Shared Memory)
+    // - File information (offset and size) when applicable
+    // - Any gaps in the address space
     fn debug() {}
 }
 
@@ -348,6 +374,9 @@ impl VmmapOps for Vmmap {
     }
 
     // Method to change protection of a memory region
+    // Modifies protection for existing pages in the region
+    // Should be able to handle splitting of existing pages when necessary
+    // Should maintain mapping consistency while changing protections
     fn change_prot(&mut self, page_num: u32, npages: u32, new_prot: i32) {
         let new_region_end_page = page_num + npages;
         let new_region_start_page = page_num;
