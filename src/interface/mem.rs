@@ -4,6 +4,9 @@ use crate::safeposix::cage::{MemoryBackingType, Vmmap, VmmapOps, MAP_SHARED, PAG
 
 use crate::interface::{cagetable_getref, syscall_error, Errno};
 
+// heap is placed at the very top of the memory
+pub const HEAP_ENTRY_INDEX: u32 = 0;
+
 pub fn round_up_page(length: u64) -> u64 {
     if length % PAGESIZE as u64 == 0 {
         length
@@ -66,7 +69,7 @@ pub fn munmap_handler(cageid: u64, addr: *mut u8, len: usize) -> i32 {
     // we are replacing munmap with mmap because we do not want to really deallocate the memory region
     // we just want to set the prot of the memory region back to PROT_NONE
     let result = cage.mmap_syscall(sysaddr as *mut u8, rounded_length, PROT_NONE, (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED) as i32, -1, 0);
-    if result as usize != rounded_addr {
+    if result != sysaddr {
         panic!("MAP_FIXED not fixed");
     }
 
@@ -153,6 +156,11 @@ pub fn mmap_handler(cageid: u64, addr: *mut u8, len: usize, mut prot: i32, mut f
         }
 
         let result = cage.mmap_syscall(sysaddr as *mut u8, rounded_length as usize, prot, flags, fildes, off);
+        
+        let vmmap = cage.vmmap.read();
+        let result = vmmap.sys_to_user(result);
+        drop(vmmap);
+
         if result >= 0 {
             if result != useraddr {
                 panic!("MAP_FIXED not fixed");
@@ -179,7 +187,7 @@ pub fn sbrk_handler(cageid: u64, brk: u32) -> i32 {
     let cage = cagetable_getref(cageid);
 
     let mut vmmap = cage.vmmap.write();
-    let heap = vmmap.find_page(0).unwrap().clone();
+    let heap = vmmap.find_page(HEAP_ENTRY_INDEX).unwrap().clone();
 
     if brk == 0 {
         return (PAGESIZE * heap.npages) as i32;

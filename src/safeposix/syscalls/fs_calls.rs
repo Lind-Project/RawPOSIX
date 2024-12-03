@@ -17,7 +17,6 @@ use crate::safeposix::shm::*;
 use crate::interface::ShmidsStruct;
 use crate::interface::StatData;
 
-use libc::MAP_FIXED;
 use libc::*;
 use std::io::stdout;
 use std::os::unix::io::RawFd;
@@ -771,9 +770,8 @@ impl Cage {
         flags: i32,
         virtual_fd: i32,
         off: i64
-    ) -> i32 {
+    ) -> i64 {
         if virtual_fd != -1 {
-            // TO-DO: handle vmmap result here
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
                 Ok(kernel_fd) => {
                     let ret = unsafe {
@@ -782,14 +780,13 @@ impl Cage {
 
                     // Check if mmap failed and return the appropriate error if so
                     if ret == -1 {
-                        return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
+                        return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags") as i64;
                     }
 
-                    let vmmap = self.vmmap.read();
-                    vmmap.sys_to_user(ret)
+                    ret
                 },
                 Err(_e) => {
-                    return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor");
+                    return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor") as i64;
                 }
             }
         } else {
@@ -799,10 +796,10 @@ impl Cage {
             };
             // Check if mmap failed and return the appropriate error if so
             if ret == -1 {
-                return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
+                return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags") as i64;
             }
-            let vmmap = self.vmmap.read();
-            vmmap.sys_to_user(ret)
+
+            ret
         }
     }
 
