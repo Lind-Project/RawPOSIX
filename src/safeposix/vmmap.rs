@@ -1,3 +1,6 @@
+use crate::fdtables;
+
+use super::cage::{syscall_error, Errno};
 use super::vmmap_constants::*;
 use std::io;
 use nodit::NoditMap;
@@ -67,7 +70,7 @@ impl VmmapEntry {
     // this is effectively whatever mode the file was opened with
     // we need this because we shouldnt be able to change filed backed mappings 
     // to have protections exceeding that of the file
-    fn get_max_prot(&self, cage_id: u64, virtual_fd: u64 -> i32 {
+    fn get_max_prot(&self, cage_id: u64, virtual_fd: u64) -> i32 {
 
         let wrappedvfd = fdtables::translate_virtual_fd(cage_id, virtual_fd as u64);
         if wrappedvfd.is_err() {
@@ -76,12 +79,12 @@ impl VmmapEntry {
         let vfd = wrappedvfd.unwrap();
 
         // Declare statbuf by ourselves 
-        let mut libc_statbuf: stat = unsafe { std::mem::zeroed() };
+        let mut libc_statbuf: libc::stat = unsafe { std::mem::zeroed() };
         let libcret = unsafe {
             libc::fstat(vfd.underfd as i32, &mut libc_statbuf)
         };
 
-        libc_statbuf.mode as i32
+        libc_statbuf.st_mode as i32
     }
 }
 
@@ -199,6 +202,8 @@ pub struct Vmmap {
     pub entries: NoditMap<u32, Interval<u32>, VmmapEntry>, // Keyed by `page_num`
     pub cached_entry: Option<VmmapEntry>,                  // TODO: is this still needed?
                                                            // Use Option for safety
+    pub base_address: Option<i64>,                         // wasm base address. None means uninitialized yet
+
 }
 
 #[allow(dead_code)]
@@ -207,6 +212,7 @@ impl Vmmap {
         Vmmap {
             entries: NoditMap::new(),
             cached_entry: None,
+            base_address: None
         }
     }
 
@@ -218,6 +224,18 @@ impl Vmmap {
     // Method to truncate page number down to the nearest multiple of pages_per_map
     fn trunc_page_num_down_to_map_multiple(&self, npages: u32, pages_per_map: u32) -> u32 {
         npages & !(pages_per_map - 1)
+    }
+
+    pub fn set_base_address(&mut self, base_address: i64) {
+        self.base_address = Some(base_address);
+    }
+
+    pub fn user_to_sys(&self, address: i32) -> i64 {
+        address as i64 + self.base_address.unwrap()
+    }
+
+    pub fn sys_to_user(&self, address: i64) -> i32 {
+        (address as i64 - self.base_address.unwrap()) as i32
     }
 
     // Visits each entry in the vmmap, applying a visitor function to each entry

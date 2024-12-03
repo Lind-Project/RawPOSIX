@@ -141,6 +141,9 @@ impl Cage {
             new_semtable.insert((*pair.key()).clone(), pair.value().clone());
         }
 
+        let parent_vmmap = self.vmmap.read();
+        let new_vmmap = parent_vmmap.clone();
+
         let cageobj = Cage {
             cageid: child_cageid,
             cwd: interface::RustLock::new(self.cwd.read().clone()),

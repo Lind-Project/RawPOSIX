@@ -776,19 +776,24 @@ impl Cage {
         prot: i32,
         flags: i32,
         virtual_fd: i32,
-        off: i64,
-    ) -> i32 {
+        off: i64
+    ) -> i64 {
         if virtual_fd != -1 {
             match fdtables::translate_virtual_fd(self.cageid, virtual_fd as u64) {
                 Ok(kernel_fd) => {
                     let ret = unsafe {
-                        ((libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64) 
-                            & 0xffffffff) as i32
+                        (libc::mmap(addr as *mut c_void, len, prot, flags, kernel_fd.underfd as i32, off) as i64)
                     };
-                    return ret;
+
+                    // Check if mmap failed and return the appropriate error if so
+                    if ret == -1 {
+                        return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags") as i64;
+                    }
+
+                    ret
                 },
                 Err(_e) => {
-                    return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor");
+                    return syscall_error(Errno::EBADF, "mmap", "Bad File Descriptor") as i64;
                 }
             }
         } else {
@@ -798,9 +803,10 @@ impl Cage {
             };
             // Check if mmap failed and return the appropriate error if so
             if ret == -1 {
-                return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags");
+                return syscall_error(Errno::EINVAL, "mmap", "mmap failed with invalid flags") as i64;
             }
-            return (ret & 0xffffffff) as i32;
+
+            ret
         }
     }
 
@@ -1186,9 +1192,9 @@ impl Cage {
         let prot: i32;
         if let Some(mut segment) = metadata.shmtable.get_mut(&shmid) {
             if 0 != (shmflg & fs_constants::SHM_RDONLY) {
-                prot = PROT_READ;
+                prot = libc::PROT_READ;
             } else {
-                prot = PROT_READ | PROT_WRITE;
+                prot = libc::PROT_READ | libc::PROT_WRITE;
             }
             let mut rev_shm = self.rev_shm.lock();
             rev_shm.push((shmaddr as u32, shmid));
