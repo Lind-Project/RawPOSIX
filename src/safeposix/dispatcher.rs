@@ -1562,10 +1562,10 @@ pub fn lindrustinit(verbosity: isize) {
         libc::close(1);
         libc::close(2);
     
-        let stdin_fd = libc::open("/dev/null\0".as_ptr(), libc::O_RDONLY);
+        let stdin_fd = libc::open("/dev/null\0".as_ptr() as *const i8, libc::O_RDONLY);
         assert!(stdin_fd == 0, "stdin not properly restored");
     
-        let stdout_fd = libc::open("/dev/null\0".as_ptr(), libc::O_WRONLY);
+        let stdout_fd = libc::open("/dev/null\0".as_ptr() as *const i8, libc::O_WRONLY);
         assert!(stdout_fd == 1, "stdout not properly restored");
     
         let stderr_fd = libc::dup(1);
