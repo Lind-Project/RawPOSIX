@@ -501,167 +501,167 @@ impl Cage {
     *       - 0, if the timeout expired before any file descriptors became ready
     *       - -1, fail
     */
-    pub fn select_syscall(
-        &self,
-        nfds: i32,
-        mut readfds: Option<&mut fd_set>,
-        mut writefds: Option<&mut fd_set>,
-        mut errorfds: Option<&mut fd_set>,
-        rposix_timeout: Option<RustDuration>,
-    ) -> i32 {
+    // pub fn select_syscall(
+    //     &self,
+    //     nfds: i32,
+    //     mut readfds: Option<&mut fd_set>,
+    //     mut writefds: Option<&mut fd_set>,
+    //     mut errorfds: Option<&mut fd_set>,
+    //     rposix_timeout: Option<RustDuration>,
+    // ) -> i32 {
 
-        let mut timeout;
-        if rposix_timeout.is_none() {
-            timeout = libc::timeval { 
-                tv_sec: 0, 
-                tv_usec: 0,
-            };
-        } else {
-            timeout = libc::timeval { 
-                tv_sec: rposix_timeout.unwrap().as_secs() as i64, 
-                tv_usec: rposix_timeout.unwrap().subsec_micros() as i64,
-            };
-        }
+    //     let mut timeout;
+    //     if rposix_timeout.is_none() {
+    //         timeout = libc::timeval { 
+    //             tv_sec: 0, 
+    //             tv_usec: 0,
+    //         };
+    //     } else {
+    //         timeout = libc::timeval { 
+    //             tv_sec: rposix_timeout.unwrap().as_secs() as i64, 
+    //             tv_usec: rposix_timeout.unwrap().subsec_micros() as i64,
+    //         };
+    //     }
 
-        let orfds = readfds.as_mut().map(|fds| &mut **fds);
-        let owfds = writefds.as_mut().map(|fds| &mut **fds);
-        let oefds = errorfds.as_mut().map(|fds| &mut **fds);
+    //     let orfds = readfds.as_mut().map(|fds| &mut **fds);
+    //     let owfds = writefds.as_mut().map(|fds| &mut **fds);
+    //     let oefds = errorfds.as_mut().map(|fds| &mut **fds);
 
-        let mut fdkindset = HashSet::new();
-        // fdkindset.insert(FDKIND_IMPIPE);
-        fdkindset.insert(FDKIND_KERNEL);
+    //     let mut fdkindset = HashSet::new();
+    //     // fdkindset.insert(FDKIND_IMPIPE);
+    //     fdkindset.insert(FDKIND_KERNEL);
 
-        let (selectbittables, unparsedtables, mappingtable) = fdtables::prepare_bitmasks_for_select(self.cageid, nfds as u64, orfds.copied(), owfds.copied(), oefds.copied(), &fdkindset).unwrap();
-        // libc select()
-        let (readnfd, mut real_readfds) = selectbittables[0].get(&FDKIND_KERNEL).unwrap();
-        let (writenfd, mut real_writefds) = selectbittables[1].get(&FDKIND_KERNEL).unwrap();
-        let (errornfd, mut real_errorfds) = selectbittables[2].get(&FDKIND_KERNEL).unwrap();
+    //     let (selectbittables, unparsedtables, mappingtable) = fdtables::prepare_bitmasks_for_select(self.cageid, nfds as u64, orfds.copied(), owfds.copied(), oefds.copied(), &fdkindset).unwrap();
+    //     // libc select()
+    //     let (readnfd, mut real_readfds) = selectbittables[0].get(&FDKIND_KERNEL).unwrap();
+    //     let (writenfd, mut real_writefds) = selectbittables[1].get(&FDKIND_KERNEL).unwrap();
+    //     let (errornfd, mut real_errorfds) = selectbittables[2].get(&FDKIND_KERNEL).unwrap();
         
-        let mut realnewnfds = readnfd;
-        if realnewnfds < writenfd {
-            realnewnfds = writenfd;
-        } else if realnewnfds < errornfd {
-            realnewnfds = errornfd;
-        }
+    //     let mut realnewnfds = readnfd;
+    //     if realnewnfds < writenfd {
+    //         realnewnfds = writenfd;
+    //     } else if realnewnfds < errornfd {
+    //         realnewnfds = errornfd;
+    //     }
 
-        // Ensured that null_mut is used if the Option is None for fd_set parameters.
-        let ret = unsafe { 
-            libc::select(
-                *realnewnfds as i32, 
-                &mut real_readfds as *mut fd_set, 
-                &mut real_writefds as *mut fd_set,
-                &mut real_errorfds as *mut fd_set,
-                &mut timeout as *mut timeval)
-        };
+    //     // Ensured that null_mut is used if the Option is None for fd_set parameters.
+    //     let ret = unsafe { 
+    //         libc::select(
+    //             *realnewnfds as i32, 
+    //             &mut real_readfds as *mut fd_set, 
+    //             &mut real_writefds as *mut fd_set,
+    //             &mut real_errorfds as *mut fd_set,
+    //             &mut timeout as *mut timeval)
+    //     };
 
-        if ret < 0 {
-            let errno = get_errno();
-            return handle_errno(errno, "select");
-        }
+    //     if ret < 0 {
+    //         let errno = get_errno();
+    //         return handle_errno(errno, "select");
+    //     }
 
-        // impipe/imsock select()
-        let start_time = starttimer();
+    //     // impipe/imsock select()
+    //     let start_time = starttimer();
 
-        let end_time = match rposix_timeout {
-            Some(time) => time,
-            None => RustDuration::MAX,
-        };
+    //     let end_time = match rposix_timeout {
+    //         Some(time) => time,
+    //         None => RustDuration::MAX,
+    //     };
 
-        let mut return_code = 0;
-        let mut unreal_read = HashSet::new();
-        let mut unreal_write = HashSet::new();
+    //     let mut return_code = 0;
+    //     let mut unreal_read = HashSet::new();
+    //     let mut unreal_write = HashSet::new();
 
-        /* TODO
-            1. Do we need to handle errfds?
-            2. Err returns?
-        */
-        // loop {
-        //     for (fdkind_flag, entry) in unparsedtables[0].iter() {
-        //         if *fdkind_flag == FDKIND_IMPIPE {
-        //             let res = self.select_impipe_read(fdkind_flag, entry, &mut unreal_read, &mut return_code, mappingtable.clone());
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         } else if *fdkind_flag == FDKIND_IMSOCK {
-        //             let res = self.select_imsock_read(fdkind_flag, entry, &mut unreal_read, &mut return_code, mappingtable.clone());
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         }
-        //     }
+    //     /* TODO
+    //         1. Do we need to handle errfds?
+    //         2. Err returns?
+    //     */
+    //     // loop {
+    //     //     for (fdkind_flag, entry) in unparsedtables[0].iter() {
+    //     //         if *fdkind_flag == FDKIND_IMPIPE {
+    //     //             let res = self.select_impipe_read(fdkind_flag, entry, &mut unreal_read, &mut return_code, mappingtable.clone());
+    //     //             if res != 0 {
+    //     //                 return syscall_error(Errno::EINVAL, "select", "");
+    //     //             }
+    //     //         } else if *fdkind_flag == FDKIND_IMSOCK {
+    //     //             let res = self.select_imsock_read(fdkind_flag, entry, &mut unreal_read, &mut return_code, mappingtable.clone());
+    //     //             if res != 0 {
+    //     //                 return syscall_error(Errno::EINVAL, "select", "");
+    //     //             }
+    //     //         }
+    //     //     }
 
-        //     for (fdkind_flag, entry) in unparsedtables[1].iter() {
-        //         if *fdkind_flag == FDKIND_IMPIPE {
-        //             let res = self.select_impipe_write(fdkind_flag, entry, &mut unreal_write, &mut return_code, mappingtable.clone());
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         } else if *fdkind_flag == FDKIND_IMSOCK {
-        //             let res = self.select_imsock_write(entry);
-        //             if res != 0 {
-        //                 return syscall_error(Errno::EINVAL, "select", "");
-        //             }
-        //         }
-        //     }
+    //     //     for (fdkind_flag, entry) in unparsedtables[1].iter() {
+    //     //         if *fdkind_flag == FDKIND_IMPIPE {
+    //     //             let res = self.select_impipe_write(fdkind_flag, entry, &mut unreal_write, &mut return_code, mappingtable.clone());
+    //     //             if res != 0 {
+    //     //                 return syscall_error(Errno::EINVAL, "select", "");
+    //     //             }
+    //     //         } else if *fdkind_flag == FDKIND_IMSOCK {
+    //     //             let res = self.select_imsock_write(entry);
+    //     //             if res != 0 {
+    //     //                 return syscall_error(Errno::EINVAL, "select", "");
+    //     //             }
+    //     //         }
+    //     //     }
 
-        //     // We haven't handle errfds
+    //     //     // We haven't handle errfds
 
-        //     // we break if there is any file descriptor ready
-        //     // or timeout is reached
-        //     if return_code != 0 || readtimer(start_time) > end_time {
-        //         break;
-        //     } else {
-        //         // otherwise, check for signal and loop again
-        //         if sigcheck() {
-        //             return syscall_error(Errno::EINTR, "select", "interrupted function call");
-        //         }
-        //         // We yield to let other threads continue if we've found no ready descriptors
-        //         lind_yield();
-        //     }
-        // }
-        // Revert result
-        let (read_flags, read_result) = fdtables::get_one_virtual_bitmask_from_select_result(
-            FDKIND_KERNEL, 
-            nfds as u64, 
-            Some(real_readfds), 
-            unreal_read, 
-            None, 
-            &mappingtable
-        );
+    //     //     // we break if there is any file descriptor ready
+    //     //     // or timeout is reached
+    //     //     if return_code != 0 || readtimer(start_time) > end_time {
+    //     //         break;
+    //     //     } else {
+    //     //         // otherwise, check for signal and loop again
+    //     //         if sigcheck() {
+    //     //             return syscall_error(Errno::EINTR, "select", "interrupted function call");
+    //     //         }
+    //     //         // We yield to let other threads continue if we've found no ready descriptors
+    //     //         lind_yield();
+    //     //     }
+    //     // }
+    //     // Revert result
+    //     let (read_flags, read_result) = fdtables::get_one_virtual_bitmask_from_select_result(
+    //         FDKIND_KERNEL, 
+    //         nfds as u64, 
+    //         Some(real_readfds), 
+    //         unreal_read, 
+    //         None, 
+    //         &mappingtable
+    //     );
     
-        if let Some(readfds) = readfds.as_mut() {
-            **readfds = read_result.unwrap();
-        }
+    //     if let Some(readfds) = readfds.as_mut() {
+    //         **readfds = read_result.unwrap();
+    //     }
     
-        let (write_flags, write_result) = fdtables::get_one_virtual_bitmask_from_select_result(
-            FDKIND_KERNEL, 
-            nfds as u64, 
-            Some(real_writefds), 
-            unreal_write, 
-            None, 
-            &mappingtable
-        );
+    //     let (write_flags, write_result) = fdtables::get_one_virtual_bitmask_from_select_result(
+    //         FDKIND_KERNEL, 
+    //         nfds as u64, 
+    //         Some(real_writefds), 
+    //         unreal_write, 
+    //         None, 
+    //         &mappingtable
+    //     );
     
-        if let Some(writefds) = writefds.as_mut() {
-            **writefds = write_result.unwrap();
-        }
+    //     if let Some(writefds) = writefds.as_mut() {
+    //         **writefds = write_result.unwrap();
+    //     }
     
-        let (error_flags, error_result) = fdtables::get_one_virtual_bitmask_from_select_result(
-            FDKIND_KERNEL, 
-            nfds as u64, 
-            Some(real_errorfds), 
-            HashSet::new(), // Assuming there are no unreal errorsets
-            None, 
-            &mappingtable
-        );
+    //     let (error_flags, error_result) = fdtables::get_one_virtual_bitmask_from_select_result(
+    //         FDKIND_KERNEL, 
+    //         nfds as u64, 
+    //         Some(real_errorfds), 
+    //         HashSet::new(), // Assuming there are no unreal errorsets
+    //         None, 
+    //         &mappingtable
+    //     );
     
-        if let Some(errorfds) = errorfds.as_mut() {
-            **errorfds = error_result.unwrap();
-        }
+    //     if let Some(errorfds) = errorfds.as_mut() {
+    //         **errorfds = error_result.unwrap();
+    //     }
     
-        // The total number of descriptors ready
-        (read_flags + write_flags + error_flags) as i32
-    }
+    //     // The total number of descriptors ready
+    //     (read_flags + write_flags + error_flags) as i32
+    // }
 
     // pub fn select_impipe_read(
     //     &self, 
