@@ -1915,7 +1915,7 @@ impl Cage {
 // error-handling mechanism, it will require a systematic redesign of all related API functions.
 pub fn kernel_close(fdentry: fdtables::FDTableEntry, _count: u64) {
     eprintln!("Requesting close file descriptor: {}", fdentry.underfd);
-    // let kernel_fd = fdentry.underfd as i32;
+    let kernel_fd = fdentry.underfd as i32;
     // if kernel_fd == 0 || kernel_fd == 1 || kernel_fd == 2 {
     //     return;
     // }
