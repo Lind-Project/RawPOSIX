@@ -1558,20 +1558,10 @@ pub fn lindrustinit(verbosity: isize) {
     // STDIN
     let dev_null = CString::new("/home/lind/lind_project/src/safeposix-rust/tmp/").unwrap();
     unsafe {
-        libc::close(0);
-        libc::close(1);
-        libc::close(2);
-    
-        let stdin_fd = libc::open(dev_null.as_ptr() as *const i8, libc::O_RDONLY);
-        assert!(stdin_fd == 0, "stdin not properly restored");
-    
-        let stdout_fd = libc::open(dev_null.as_ptr() as *const i8, libc::O_WRONLY);
-        assert!(stdout_fd == 1, "stdout not properly restored");
-    
-        let stderr_fd = libc::dup(1);
-        assert!(stderr_fd == 2, "stderr not properly restored");
+        libc::open(dev_null.as_ptr(), libc::O_RDONLY);
+        libc::open(dev_null.as_ptr(), libc::O_WRONLY);
+        libc::dup(1);
     }
-    
     
     fdtables::get_specific_virtual_fd(0, 0, FDKIND_KERNEL, 0, false, 0).unwrap();
     // STDOUT
