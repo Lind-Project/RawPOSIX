@@ -1906,14 +1906,15 @@ impl Cage {
     }
 }
 
-pub fn kernel_close(fdentry: fdtables::FDTableEntry, _count: u64) -> i32 {
+pub fn kernel_close(fdentry: fdtables::FDTableEntry, _count: u64) {
     let ret = unsafe {
         libc::close(fdentry.underfd as i32)
     };
 
     if ret < 0 {
         let errno = get_errno();
-        return handle_errno(errno, "close");
+        // return handle_errno(errno, "close");
+        panic!("kernel_close failed with errno: {:?}", errno);
     }
-    ret
+    
 }
