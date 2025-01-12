@@ -1556,7 +1556,7 @@ pub fn lindrustinit(verbosity: isize) {
     fdtables::init_empty_cage(0);
     // Set the first 3 fd to STDIN / STDOUT / STDERR
     // STDIN
-    let dev_null = CString::new("/home/lind/lind_project/src/safeposix-rust/tmp/dev/null").unwrap();
+    let dev_null = CString::new("/dev/null\0").unwrap();
     unsafe {
         libc::close(0);
         libc::close(1);
