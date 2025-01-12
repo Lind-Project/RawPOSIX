@@ -1556,16 +1556,16 @@ pub fn lindrustinit(verbosity: isize) {
     fdtables::init_empty_cage(0);
     // Set the first 3 fd to STDIN / STDOUT / STDERR
     // STDIN
-    let dev_null = CString::new("/dev/null\0").unwrap();
+    // let dev_null = CString::new("/dev/null\0").unwrap();
     unsafe {
         libc::close(0);
         libc::close(1);
         libc::close(2);
     
-        let stdin_fd = libc::open(dev_null.as_ptr(), libc::O_RDONLY);
+        let stdin_fd = libc::open("/dev/null\0".as_ptr(), libc::O_RDONLY);
         assert!(stdin_fd == 0, "stdin not properly restored");
     
-        let stdout_fd = libc::open(dev_null.as_ptr(), libc::O_WRONLY);
+        let stdout_fd = libc::open("/dev/null\0".as_ptr(), libc::O_WRONLY);
         assert!(stdout_fd == 1, "stdout not properly restored");
     
         let stderr_fd = libc::dup(1);
