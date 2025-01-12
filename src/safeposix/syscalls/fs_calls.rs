@@ -1906,12 +1906,19 @@ impl Cage {
     }
 }
 
+// In the context of the cage exit, we only need to close STDIN, STDOUT, and STDERR 
+// from the user's or cage's perspective. It is not necessary to close the host kernel's
+// STDIN, STDOUT, and STDERR file descriptors. Hence, the check for kernel_fd being 0, 1, or 2.
+//
+// If the host kernel's `close` call fails, the current implementation panics as dictated 
+// by the existing API requirements. In the future, if we decide to introduce a more robust 
+// error-handling mechanism, it will require a systematic redesign of all related API functions.
 pub fn kernel_close(fdentry: fdtables::FDTableEntry, _count: u64) {
     eprintln!("Requesting close file descriptor: {}", fdentry.underfd);
-    let kernel_fd = fdentry.underfd as i32;
-    if kernel_fd == 0 || kernel_fd == 1 || kernel_fd == 2 {
-        return;
-    }
+    // let kernel_fd = fdentry.underfd as i32;
+    // if kernel_fd == 0 || kernel_fd == 1 || kernel_fd == 2 {
+    //     return;
+    // }
     eprintln!("Closing file descriptor: {}", fdentry.underfd);
     let ret = unsafe {
         libc::close(kernel_fd)
